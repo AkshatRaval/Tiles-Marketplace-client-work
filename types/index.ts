@@ -2,7 +2,7 @@ export interface Tile {
   id: string;
   name: string;
   images: string[];
-  category: 'kitchen' | 'bathroom' | 'hall' | 'outdoor';
+  category: "kitchen" | "bathroom" | "hall" | "outdoor";
   size: string;
   material: string;
   finish: string;
@@ -10,8 +10,8 @@ export interface Tile {
   minPrice: number;
   maxPrice: number;
   city: string;
-  stock: 'in-stock' | 'limited' | 'out-of-stock';
-  status: 'pending' | 'approved' | 'rejected';
+  stock: "in-stock" | "limited" | "out-of-stock";
+  status: "pending" | "approved" | "rejected";
   dealerId: string;
   dealerName: string;
   description: string;
@@ -36,13 +36,18 @@ export interface Dealer {
 }
 
 export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: 'customer' | 'dealer' | 'admin';
+  id: string | undefined;
+  name: string | undefined;
+  email: string | undefined;
+  role: "customer" | "dealer" | "admin";
+  duty: string | "homeowner" | "designer";
+  lookingFor: string[];
+  city: string;
+  phone: string;
+  referral: string;
 }
 
-export type TileCategory = 'kitchen' | 'bathroom' | 'hall' | 'outdoor';
-export type TileFinish = 'glossy' | 'matte' | 'satin' | 'textured';
-export type TileStatus = 'pending' | 'approved' | 'rejected';
-export type StockStatus = 'in-stock' | 'limited' | 'out-of-stock';
+export type TileCategory = "kitchen" | "bathroom" | "hall" | "outdoor";
+export type TileFinish = "glossy" | "matte" | "satin" | "textured";
+export type TileStatus = "pending" | "approved" | "rejected";
+export type StockStatus = "in-stock" | "limited" | "out-of-stock";

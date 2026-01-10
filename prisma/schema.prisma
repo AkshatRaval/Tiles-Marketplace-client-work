@@ -22,7 +22,11 @@ model Users {
   name      String
   email     String   @unique
   phone     String?
+  role      String?
   city      String?
+  duty      String?
+  lookingFor String[]
   createdAt DateTime @default(now())
+  referral  String?
   bookings  Bookings[]
 }

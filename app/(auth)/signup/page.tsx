@@ -20,7 +20,6 @@ export default function SignupPage() {
   const router = useRouter();
   const hasToasted = useRef(false);
 
-  // ✅ Redirect logic: If user is already logged in, send them home
   useEffect(() => {
     if (!isLoading && user && !hasToasted.current) {
       hasToasted.current = true;
@@ -42,12 +41,12 @@ export default function SignupPage() {
 
     setIsSubmitting(true);
     try {
-      const body = { name, email, password };
+      const body = { email, password };
       const res = await api.post("auth/signup", body);
 
       if (res.data.success) {
         toast.success("Account created! Check your email for verification.");
-        router.push("/login");
+        router.push("/onboarding");
       } else {
         toast.error(res.data.message || "Registration failed");
       }
@@ -70,7 +69,7 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 sm:p-8">
-      <div className="w-full max-w-6xl h-full md:h-[90vh] bg-background rounded-[40px] overflow-hidden flex flex-col md:row border shadow-2xl">
+      <div className="w-full max-w-6xl h-full md:h-[90vh] bg-background rounded-[40px] overflow-hidden flex sm:row border shadow-2xl">
         
         {/* Left Side - Visuals */}
         <div className="relative hidden md:flex w-1/2 flex-col justify-between p-12 text-white">
@@ -177,7 +176,7 @@ export default function SignupPage() {
                 <button
                   type="button"
                   className="w-full bg-background border border-border py-3.5 rounded-xl text-sm font-medium hover:bg-muted transition-colors flex items-center justify-center gap-2">
-                  <Image src="https://www.google.com/favicon.ico" width={16} height={16} alt="Google" />
+                  <Image src="/assets/google.ico" width={16} height={16} alt="Google" />
                   Sign Up with Google
                 </button>
               </div>

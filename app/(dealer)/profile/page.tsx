@@ -176,7 +176,7 @@ const ProfileNavItem = ({
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
     </div>
-    <div className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0">
+    <div className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-all -translate-x-2.5 group-hover:translate-x-0">
       →
     </div>
   </button>

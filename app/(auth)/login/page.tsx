@@ -1,13 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Eye, EyeOff, Sparkles } from "lucide-react";
+import { Eye, EyeOff, Sparkles, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import toast from "react-hot-toast";
-import { createClient } from "@/utils/supabase/server";
-import { SupabaseClient } from "@supabase/supabase-js";
 import { useAuth } from "@/components/auth-provider";
 import { useRouter } from "next/navigation";
 
@@ -15,50 +13,76 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const { user, isLoading } = useAuth();
   const router = useRouter();
-  useEffect(() => {
-    if (!isLoading && user) {
-      // console.log(user)
-      toast.success("Welcome back!");
-      router.push("/");
-    }
-  }, [user]);
+  const hasToasted = useRef(false);
 
-  const handleLogin = async (e: any) => {
+  // ✅ Redirect logic: If user is already logged in, send them home
+  useEffect(() => {
+    if (!isLoading && user && !hasToasted.current) {
+      hasToasted.current = true;
+      toast.success("Welcome back!");
+      router.replace("/");
+    }
+  }, [user, isLoading, router]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const body = { email, password };
+    
+    if (!email || !password) {
+      return toast.error("Please fill in all fields");
+    }
+
+    setIsSubmitting(true);
     try {
-      const result = await api.post("/auth/login", body);
-      if (!result.data.success) {
-        toast.error("Not done yet bitch");
+      const body = { email, password };
+      const res = await api.post("auth/login", body);
+
+      if (res.data.success) {
+        toast.success("Logged in successfully!");
+        router.push("/");
       } else {
-        toast.success("Logged in successfully!")
-        router.push('/profile')
+        toast.error(res.data.message || "Login failed");
       }
-    } catch (error) {
-      toast.error("Not done yet bitch");
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.errorMsg || "Invalid credentials";
+      toast.error(errorMsg);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
+  // Prevent "flicker" of the login form if user is already auth'd
+  if (isLoading || (user && !hasToasted.current)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="animate-spin text-primary" size={40} />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 sm:p-8">
-      <div className="w-full max-w-350 h-[90vh] bg-background rounded-[40px] overflow-hidden flex flex-col md:flex-row">
+      <div className="w-full max-w-6xl h-full md:h-[90vh] bg-background rounded-[40px] overflow-hidden flex sm:row border shadow-2xl">
+        
+        {/* Left Side - Visuals */}
         <div className="relative hidden md:flex w-1/2 flex-col justify-between p-12 text-white">
           <div className="absolute inset-0 z-0">
             <Image
               src="/heroPage.jpg"
-              alt="Abstract Background"
+              alt="Welcome back"
               fill
               className="object-cover"
               priority
             />
-            <div className="absolute inset-0 bg-black/20" />
+            <div className="absolute inset-0 bg-black/30" />
           </div>
 
           <div className="relative z-10">
             <div className="flex items-center gap-4 text-sm font-medium tracking-widest uppercase opacity-90">
-              <span>A Wise Quote</span>
+              <span>Welcome Back</span>
               <div className="h-px w-12 bg-white/60"></div>
             </div>
           </div>
@@ -74,112 +98,80 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="w-full md:w-1/2 bg-card p-8 md:p-16 flex flex-col justify-center items-center">
-          <div className="w-full max-w-md space-y-8">
-            <div className="text-center flex justify-center items-center gap-2 mb-4">
-              <Sparkles />
-              <span className="font-bold text-xl tracking-tight">
-                Tiles Market
-              </span>
+        {/* Right Side - Form */}
+        <div className="w-full md:w-1/2 bg-card p-8 md:p-16 flex flex-col justify-center">
+          <div className="w-full max-w-md mx-auto space-y-6">
+            <div className="text-center flex justify-center items-center gap-2">
+              <Sparkles className="text-primary" />
+              <span className="font-bold text-xl tracking-tight uppercase">Tiles Market</span>
             </div>
 
             <div className="text-center space-y-2">
-              <h2 className="font-serif text-4xl text-card-foreground">
-                Welcome Back
-              </h2>
-              <p className="text-muted-foreground text-sm">
-                Enter your email and password to access your account
-              </p>
+              <h2 className="font-serif text-4xl text-card-foreground">Login</h2>
+              <p className="text-muted-foreground text-sm">Enter your credentials to access your account</p>
             </div>
 
-            <form className="space-y-6 mt-8" onSubmit={handleLogin}>
-              <div className="space-y-2">
-                <label
-                  className="text-sm font-medium text-card-foreground"
-                  htmlFor="email"
-                >
-                  Email
-                </label>
+            <form className="space-y-4 mt-4" onSubmit={handleLogin}>
+              {/* Email Field */}
+              <div className="space-y-1">
+                <label className="text-sm font-medium" htmlFor="email">Email</label>
                 <input
                   id="email"
                   type="email"
-                  placeholder="Enter your email"
-                  className="w-full px-4 py-3 bg-card border border-accent rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-accent-foreground transition-all text-sm placeholder:text-card-foreground"
+                  required
+                  placeholder="name@example.com"
+                  className="w-full px-4 py-3 bg-muted/50 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
 
-              <div className="space-y-2">
-                <label
-                  className="text-sm font-medium text-card-foreground"
-                  htmlFor="password"
-                >
-                  Password
-                </label>
+              {/* Password Field */}
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <label className="text-sm font-medium" htmlFor="password">Password</label>
+                  <Link href="#" className="text-xs text-muted-foreground hover:text-primary">Forgot Password?</Link>
+                </div>
                 <div className="relative">
                   <input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    className="w-full px-4 py-3 bg-card border border-accent rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-accent-foreground transition-all text-sm placeholder:text-card-foreground pr-10"
+                    required
+                    placeholder="••••••••"
+                    className="w-full px-4 py-3 bg-muted/50 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none transition-all pr-10"
                     onChange={(e) => setPassword(e.target.value)}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 cursor-pointer top-1/2 -translate-y-1/2 text-accent-foreground hover:text-accent-foreground/80"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="remember"
-                    className="w-4 h-4 rounded border-accent text-card-foreground/50 focus:ring-accent-foreground"
-                  />
-                  <label
-                    htmlFor="remember"
-                    className="text-sm text-card-foreground/50"
-                  >
-                    Remember me
-                  </label>
-                </div>
-                <Link
-                  href="#"
-                  className="text-sm font-medium text-card-foreground/50 hover:underline"
-                >
-                  Forgot Password
-                </Link>
-              </div>
-
-              <div className="space-y-4 pt-2">
+              <div className="pt-4 space-y-4">
                 <button
                   type="submit"
-                  className="w-full bg-primary text-primary-foreground py-3.5 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors shadow-lg shadow-black/20"
+                  disabled={isSubmitting}
+                  className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-primary/20"
                 >
-                  Sign In
+                  {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : "Sign In"}
                 </button>
 
                 <button
                   type="button"
-                  className="w-full bg-white text-gray-700 border border-gray-200 py-3.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                >
+                  className="w-full bg-background border border-border py-3.5 rounded-xl text-sm font-medium hover:bg-muted transition-colors flex items-center justify-center gap-2">
+                  <Image src="/assets/google.ico" width={16} height={16} alt="Google" />
                   Sign In with Google
                 </button>
               </div>
             </form>
 
-            <div className="text-center mt-8">
-              <p className="text-sm text-gray-500">
+            <div className="text-center mt-6">
+              <p className="text-sm text-muted-foreground">
                 Don't have an account?{" "}
-                <Link
-                  href="/signup"
-                  className="font-bold text-black hover:underline"
-                >
+                <Link href="/signup" className="font-bold text-foreground hover:underline">
                   Sign Up
                 </Link>
               </p>
