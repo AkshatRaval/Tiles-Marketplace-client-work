@@ -72,8 +72,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <Flower className="size-4" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold"></span>
-                <span className="truncate text-xs"></span>
+                <span className="truncate font-semibold">Admin Panel</span>
+                <span className="truncate text-xs">Welcome Back admin!</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

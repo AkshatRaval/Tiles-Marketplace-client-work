@@ -7,26 +7,164 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Bookings {
-  id         String   @id @default(uuid())
-  quantity   Int
-  status     String   @default("PENDING")
-  userId     String
-  user       Users  @relation(fields: [userId], references: [id])
-  createdAt  DateTime @default(now())
+/////////////////////////////////////////////////
+// ENUMS
+/////////////////////////////////////////////////
+
+enum UserRole {
+  CUSTOMER
+  DEALER
+  ADMIN
 }
 
 
-model Users {
+enum TileCategory {
+  FLOOR
+  WALL
+  BATHROOM
+  KITCHEN
+  OUTDOOR
+  PREMIUM
+}
+
+enum TileFinish {
+  GLOSSY
+  MATTE
+  SATIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  COMPLETED
+  CANCELLED
+}
+
+/////////////////////////////////////////////////
+// ADMIN (ONLY SYSTEM OPERATOR)
+/////////////////////////////////////////////////
+
+model Admin {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+}
+
+/////////////////////////////////////////////////
+// DEALER (INTERNAL ONLY, NEVER SHOWN TO USER)
+/////////////////////////////////////////////////
+
+model Dealer {
   id        String   @id @default(uuid())
   name      String
-  email     String   @unique
-  phone     String?
-  role      String?
-  city      String?
-  duty      String?
-  lookingFor String[]
+  shopName  String
+  phone     String
+  email     String?
+  city      String
+  state     String
+  country   String   @default("India")
+  isActive  Boolean  @default(true)
+
+  tiles     Tile[]
+
   createdAt DateTime @default(now())
-  referral  String?
-  bookings  Bookings[]
+  updatedAt DateTime @updatedAt
+}
+
+/////////////////////////////////////////////////
+// TILE (PUBLIC PRODUCT)
+/////////////////////////////////////////////////
+
+model Tile {
+  id           String   @id @default(uuid())
+  name         String
+  sku          String   @unique
+  size         String
+  material     String
+  finish       TileFinish
+  category     TileCategory
+  pricePerSqft Float
+  pricePerBox  Float
+  stock        Int
+  isPublished  Boolean @default(true)
+  description  String?
+  pdfUrl       String?
+
+  dealerId     String
+  dealer       Dealer
+
+  images       TileImage[]
+  bookings     Booking[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+
+/////////////////////////////////////////////////
+// TILE IMAGES
+/////////////////////////////////////////////////
+
+model TileImage {
+  id        String   @id @default(uuid())
+  imageUrl String
+
+  tileId   String
+  tile     Tile     @relation(fields: [tileId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+/////////////////////////////////////////////////
+// END USER (CUSTOMER)
+/////////////////////////////////////////////////
+
+
+model EndUser {
+  id          String    @id @default(uuid())
+  name        String
+  email       String    @unique
+  role        UserRole  @default(CUSTOMER)
+
+  duty        String?   
+  lookingFor  String?   
+  referral    String?   
+
+  phone       String?
+  city        String?
+
+  bookings    Booking[]
+
+  createdAt   DateTime  @default(now())
+}
+/////////////////////////////////////////////////
+// BOOKING (DROP-SHIPPING FLOW)
+/////////////////////////////////////////////////
+
+model Booking {
+  id           String        @id @default(uuid())
+
+  customerName String
+  phone        String
+  email        String?
+  address      String
+  city         String
+  pincode      String?
+
+  quantityBox  Int
+  status       BookingStatus @default(PENDING)
+
+  tileId       String
+  tile         Tile          @relation(fields: [tileId], references: [id])
+
+  userId       String?
+  user         EndUser?      @relation(fields: [userId], references: [id])
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([status])
 }

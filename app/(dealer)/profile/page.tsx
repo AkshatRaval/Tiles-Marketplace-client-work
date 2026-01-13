@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/components/auth-provider";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import Navbar from "@/components/Navigation";
 
 const Profile = () => {
   const { user, signOut, isLoading } = useAuth();

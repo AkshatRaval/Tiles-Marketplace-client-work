@@ -2,7 +2,7 @@ export interface Tile {
   id: string;
   name: string;
   images: string[];
-  category: "kitchen" | "bathroom" | "hall" | "outdoor";
+  category: TileCategory;
   size: string;
   material: string;
   finish: string;
@@ -47,7 +47,7 @@ export interface User {
   referral: string;
 }
 
-export type TileCategory = "kitchen" | "bathroom" | "hall" | "outdoor";
+export type TileCategory ="floor"| "kitchen" | "bathroom" | "hall" | "outdoor" | "wall";
 export type TileFinish = "glossy" | "matte" | "satin" | "textured";
 export type TileStatus = "pending" | "approved" | "rejected";
 export type StockStatus = "in-stock" | "limited" | "out-of-stock";

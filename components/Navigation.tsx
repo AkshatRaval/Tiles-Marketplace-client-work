@@ -43,7 +43,6 @@ const Navbar = () => {
   ];
   const { isLoading, user, signOut } = useAuth();
   const router = useRouter();
-
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-md transition-all duration-300">
