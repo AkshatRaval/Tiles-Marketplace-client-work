@@ -57,10 +57,38 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 
+const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!;
+const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
+
+async function uploadToCloudinary(file: File, type: "image" | "raw") {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", UPLOAD_PRESET);
+  formData.append("folder", "tiles");
+
+  const endpoint =
+    type === "image"
+      ? `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`
+      : `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`;
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) throw new Error("Cloudinary upload failed");
+
+  const data = await res.json();
+  return data.secure_url as string;
+}
 const AdminTiles = () => {
   const [tiles, setTiles] = useState<any[]>([]);
   const [selectedTile, setSelectedTile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+
+  /* ✅ NEW: FILE STATES (NO UPLOAD HERE) */
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [selectedPdf, setSelectedPdf] = useState<File | null>(null);
 
   const [fileNames, setFileNames] = useState({ photos: "", pdf: "" });
 
@@ -100,25 +128,53 @@ const AdminTiles = () => {
     setFormdata((prev) => ({ ...prev, [name]: value }));
   };
 
+  /* ================= FILE SELECT (NO UPLOAD) ================= */
+
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     type: "photos" | "pdf"
   ) => {
     const files = e.target.files;
-    if (!files) return;
+    if (!files || files.length === 0) return;
 
     if (type === "photos") {
-      const urls = Array.from(files).map((f) => URL.createObjectURL(f));
-      updateField("imageUrls", urls);
-      setFileNames({ ...fileNames, photos: `${files.length} images selected` });
+      const images = Array.from(files);
+      setSelectedImages(images);
+      setFileNames((p) => ({
+        ...p,
+        photos: `${images.length} images selected`,
+      }));
     } else {
-      updateField("pdfUrl", URL.createObjectURL(files[0]));
-      setFileNames({ ...fileNames, pdf: files[0].name });
+      setSelectedPdf(files[0]);
+      setFileNames((p) => ({
+        ...p,
+        pdf: files[0].name,
+      }));
     }
   };
 
+  /* ================= SUBMIT = UPLOAD ================= */
+
   const handleAddTile = async () => {
+    setLoading(true);
     try {
+      if (!selectedImages.length) {
+        alert("Please select at least one image");
+        return;
+      }
+
+      // 1️⃣ Upload images
+      const imageUrls = await Promise.all(
+        selectedImages.map((file) => uploadToCloudinary(file, "image"))
+      );
+
+      // 2️⃣ Upload PDF (optional)
+      let pdfUrl = "";
+      if (selectedPdf) {
+        pdfUrl = await uploadToCloudinary(selectedPdf, "raw");
+      }
+
+      // 3️⃣ Send to backend
       const payload = {
         name: formdata.name,
         sku: formdata.sku,
@@ -131,17 +187,22 @@ const AdminTiles = () => {
         stock: Number(formdata.stock),
         description: formdata.description,
         dealerId: formdata.dealerId,
-        imageUrls: formdata.imageUrls,
-        pdfUrl: formdata.pdfUrl,
+        imageUrls,
+        pdfUrl,
       };
 
       await api.post("/admin/tiles", payload);
       fetchTiles();
       alert("Tile created");
     } catch (e) {
+      console.error(e);
       alert("Failed to create tile");
+    } finally {
+      setLoading(false);
     }
   };
+
+  // console.log(tiles)
 
   return (
     <div className="min-h-screen bg-background p-8 space-y-6">
@@ -232,7 +293,7 @@ const AdminTiles = () => {
                     <Label>Description</Label>
                     <Textarea
                       placeholder="Finish, texture, use-cases, etc."
-                      className="min-h-[120px]"
+                      className="min-h-30"
                       onChange={(e) =>
                         updateField("description", e.target.value)
                       }
@@ -368,10 +429,19 @@ const AdminTiles = () => {
                 </SheetClose>
 
                 <Button
-                  className="flex-1 font-black uppercase"
+                  className={`flex-2 ${loading ? "bg-primary/90" : "bg-primary"}`}
                   onClick={handleAddTile}
+                  disabled={loading} // Prevent double-clicks while creating
                 >
-                  Create Tile
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      {/* Custom Spinner */}
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      <span>Creating...</span>
+                    </div>
+                  ) : (
+                    "Create Tile"
+                  )}
                 </Button>
               </div>
             </div>

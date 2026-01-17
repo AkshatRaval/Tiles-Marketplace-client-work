@@ -1,7 +1,12 @@
 export interface Tile {
   id: string;
   name: string;
-  images: string[];
+  images: {
+    id: string;
+    imageUrl: string;
+    createdAt: string;
+    tileId: string;
+  }[];
   category: TileCategory;
   size: string;
   material: string;
@@ -16,6 +21,8 @@ export interface Tile {
   dealerName: string;
   description: string;
   pdfUrl?: string;
+  pricePerBox: number;
+  pricePerSqft: number;
   createdAt: string;
 }
 
@@ -47,7 +54,13 @@ export interface User {
   referral: string;
 }
 
-export type TileCategory ="floor"| "kitchen" | "bathroom" | "hall" | "outdoor" | "wall";
+export type TileCategory =
+  | "floor"
+  | "kitchen"
+  | "bathroom"
+  | "hall"
+  | "outdoor"
+  | "wall";
 export type TileFinish = "glossy" | "matte" | "satin" | "textured";
 export type TileStatus = "pending" | "approved" | "rejected";
 export type StockStatus = "in-stock" | "limited" | "out-of-stock";

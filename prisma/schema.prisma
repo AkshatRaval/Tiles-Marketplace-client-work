@@ -99,7 +99,7 @@ model Tile {
   images       TileImage[]
   bookings     Booking[]
 
-  createdAt    DateTime @default(now())
+  createdAt    DateTime @default(now()) @index
   updatedAt    DateTime @updatedAt
 }
 
