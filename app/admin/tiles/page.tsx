@@ -81,10 +81,14 @@ async function uploadToCloudinary(file: File, type: "image" | "raw") {
   const data = await res.json();
   return data.secure_url as string;
 }
+
 const AdminTiles = () => {
   const [tiles, setTiles] = useState<any[]>([]);
   const [selectedTile, setSelectedTile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // ✅ NEW: Dealers state
+  const [dealers, setDealers] = useState<any[]>([]);
 
   /* ✅ NEW: FILE STATES (NO UPLOAD HERE) */
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
@@ -110,17 +114,29 @@ const AdminTiles = () => {
 
   useEffect(() => {
     fetchTiles();
+    fetchDealers(); // ✅ Fetch dealers on mount
   }, []);
 
   const fetchTiles = async () => {
     try {
-      const res = await fetch("/api/admin/tiles");
-      const data = await res.json();
-      setTiles(Array.isArray(data) ? data : []);
+      const res = await api.get("/admin/tiles");
+      const data = await res.data;
+      setTiles(Array.isArray(data.tiles) ? data.tiles : []);
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ✅ NEW: Fetch dealers for dropdown
+  const fetchDealers = async () => {
+    try {
+      const res = await api.get("/admin/dealers?simple=true");
+      const data = await res.data;
+      setDealers(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("Failed to fetch dealers:", e);
     }
   };
 
@@ -132,7 +148,7 @@ const AdminTiles = () => {
 
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
-    type: "photos" | "pdf"
+    type: "photos" | "pdf",
   ) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -165,7 +181,7 @@ const AdminTiles = () => {
 
       // 1️⃣ Upload images
       const imageUrls = await Promise.all(
-        selectedImages.map((file) => uploadToCloudinary(file, "image"))
+        selectedImages.map((file) => uploadToCloudinary(file, "image")),
       );
 
       // 2️⃣ Upload PDF (optional)
@@ -176,17 +192,17 @@ const AdminTiles = () => {
 
       // 3️⃣ Send to backend
       const payload = {
-        name: formdata.name,
-        sku: formdata.sku,
-        category: formdata.category.toUpperCase(),
-        material: formdata.material,
-        size: formdata.size,
+        name: formdata.name || "NOTDEFINED",
+        sku: formdata.sku || "NOTDEFINED",
+        category: formdata.category.toUpperCase() || "NOTDEFINED",
+        material: formdata.material || "NOTDEFINED",
+        size: formdata.size || "NOTDEFINED",
         finish: formdata.finish.toUpperCase(),
-        pricePerSqft: Number(formdata.pricePerSqft),
-        pricePerBox: Number(formdata.pricePerBox),
-        stock: Number(formdata.stock),
-        description: formdata.description,
-        dealerId: formdata.dealerId,
+        pricePerSqft: Number(formdata.pricePerSqft) || 0.0,
+        pricePerBox: Number(formdata.pricePerBox) || 0.0,
+        stock: Number(formdata.stock) || 0.0,
+        description: formdata.description || "NOTDEFINED",
+        dealerId: formdata.dealerId || "",
         imageUrls,
         pdfUrl,
       };
@@ -201,9 +217,7 @@ const AdminTiles = () => {
       setLoading(false);
     }
   };
-
-  // console.log(tiles)
-
+  
   return (
     <div className="min-h-screen bg-background p-8 space-y-6">
       {/* HEADER */}
@@ -340,22 +354,43 @@ const AdminTiles = () => {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
+                    {/* ✅ CHANGED: Tile Size - Now using Select */}
                     <div className="space-y-2">
                       <Label>Tile Size</Label>
-                      <Input
-                        placeholder="600x600, 600x1200"
-                        onChange={(e) => updateField("size", e.target.value)}
-                      />
+                      <Select onValueChange={(v) => updateField("size", v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="600x600">600x600</SelectItem>
+                          <SelectItem value="600x1200">600x1200</SelectItem>
+                          <SelectItem value="800x800">800x800</SelectItem>
+                          <SelectItem value="800x1600">800x1600</SelectItem>
+                          <SelectItem value="1000x1000">1000x1000</SelectItem>
+                          <SelectItem value="300x600">300x600</SelectItem>
+                          <SelectItem value="400x400">400x400</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
+                    {/* ✅ CHANGED: Material - Now using Select */}
                     <div className="space-y-2">
                       <Label>Material</Label>
-                      <Input
-                        placeholder="Porcelain, Ceramic, Vitrified"
-                        onChange={(e) =>
-                          updateField("material", e.target.value)
-                        }
-                      />
+                      <Select onValueChange={(v) => updateField("material", v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select material" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Porcelain">Porcelain</SelectItem>
+                          <SelectItem value="Ceramic">Ceramic</SelectItem>
+                          <SelectItem value="Vitrified">Vitrified</SelectItem>
+                          <SelectItem value="Marble">Marble</SelectItem>
+                          <SelectItem value="Granite">Granite</SelectItem>
+                          <SelectItem value="Natural Stone">
+                            Natural Stone
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </section>
@@ -406,15 +441,26 @@ const AdminTiles = () => {
                         onChange={(e) => updateField("stock", e.target.value)}
                       />
                     </div>
-
                     <div className="space-y-2">
-                      <Label>Dealer ID</Label>
-                      <Input
-                        placeholder="Dealer reference UUID"
-                        onChange={(e) =>
-                          updateField("dealerId", e.target.value)
-                        }
-                      />
+                      <Label>Dealer</Label>
+                      <Select onValueChange={(v) => updateField("dealerId", v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select dealer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {dealers.length === 0 ? (
+                            <SelectItem value="none" disabled>
+                              No dealers available
+                            </SelectItem>
+                          ) : (
+                            dealers.map((dealer) => (
+                              <SelectItem key={dealer.id} value={dealer.id}>
+                                {dealer.name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </section>
@@ -431,11 +477,10 @@ const AdminTiles = () => {
                 <Button
                   className={`flex-2 ${loading ? "bg-primary/90" : "bg-primary"}`}
                   onClick={handleAddTile}
-                  disabled={loading} // Prevent double-clicks while creating
+                  disabled={loading}
                 >
                   {loading ? (
                     <div className="flex items-center gap-2">
-                      {/* Custom Spinner */}
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                       <span>Creating...</span>
                     </div>
@@ -491,7 +536,7 @@ const AdminTiles = () => {
                 </TableCell>
 
                 <TableCell className="text-xs opacity-50">
-                  {tile.dealerId}
+                  {tile.dealer.name}
                 </TableCell>
 
                 <TableCell

@@ -25,6 +25,7 @@ import {
   RadialBarChart,
   RadialBar,
 } from "recharts";
+import { api } from "@/lib/api";
 
 // Simple reusable component for empty states
 const NoData = ({ message }: { message: string }) => (
@@ -43,8 +44,8 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch("/api/admin/dashboard");
-        const result = await response.json();
+        const response = await api.get("/admin/dashboard");
+        const result = await response.data;
         setData(result);
       } catch (error) {
         console.error("Error fetching dashboard stats:", error);

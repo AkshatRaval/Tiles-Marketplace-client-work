@@ -8,13 +8,13 @@ export const GET = async (req: Request) => {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     // 1. Fetch Users for Growth Chart and Active Count
-    const users = await prisma.users.findMany({
+    const users = await prisma.endUser.findMany({
       where: { createdAt: { gte: sevenDaysAgo } },
       select: { createdAt: true },
     });
 
     // 2. Market Reach (City Stats)
-    const cityStats = await prisma.users.groupBy({
+    const cityStats = await prisma.endUser.groupBy({
       by: ["city"],
       _count: { id: true },
       orderBy: { _count: { id: "desc" } },
@@ -22,18 +22,18 @@ export const GET = async (req: Request) => {
     });
 
     // 3. Booking Status Distribution
-    const bookingStats = await prisma.bookings.groupBy({
+    const bookingStats = await prisma.booking.groupBy({
       by: ["status"],
       _count: { id: true },
     });
 
     // 4. CALCULATION: Conversion Rate
     // Get unique user IDs who have made at least one booking
-    const usersWithBookings = await prisma.bookings.groupBy({
+    const usersWithBookings = await prisma.booking.groupBy({
       by: ["userId"],
     });
 
-    const totalUsersCount = await prisma.users.count();
+    const totalUsersCount = await prisma.endUser.count();
     
     const conversionRate = totalUsersCount > 0 
       ? Math.round((usersWithBookings.length / totalUsersCount) * 100) 
