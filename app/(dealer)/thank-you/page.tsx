@@ -1,32 +1,61 @@
-import { TileCard } from "@/components/card/TilesCard";
-import tileMarble from "@/public/assets/tiles-marble.png"
-import { Tile } from "@/types";
+"use client";
 
-const page = () => {
-    const tile: Tile = {
-    id: 't1',
-    name: 'Carrara White Marble',
-    images: ["/assets/tiles-marble.png"],
-    category: 'hall',
-    size: '60x60 cm',
-    material: 'Marble',
-    finish: 'Polished',
-    priceRange: '₹150 - ₹200/sqft',
-    minPrice: 150,
-    maxPrice: 200,
-    city: 'Mumbai',
-    stock: 'in-stock',
-    status: 'approved',
-    dealerId: 'd1',
-    dealerName: 'Kumar Tiles & Ceramics',
-    description: 'Elegant Carrara white marble tiles with beautiful grey veining. Perfect for living rooms and hallways. Imported from Italy.',
-    createdAt: '2024-01-10',
-  }
+import React from "react";
+import Link from "next/link";
+import { Download, Home, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button"; // Adjust path based on your project structure
+
+const ThankYou = () => {
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <TileCard key={tile.id} tile={tile} />
+    <div className="flex items-center justify-center min-h-screen bg-background px-4">
+      <div className="max-w-md w-full p-8 bg-card shadow-xl border rounded-2xl text-center">
+        {/* Success Icon */}
+        <div className="flex justify-center mb-6">
+          <div className="p-4 bg-green-400/20 rounded-full">
+            <CheckCircle2 className="w-16 h-16 text-green-500" strokeWidth={1.5} />
+          </div>
+        </div>
+
+        {/* Text Content */}
+        <h1 className="text-3xl font-bold tracking-tight mb-2">
+          Order Confirmed!
+        </h1>
+        <p className="text-slate-500 mb-8">
+          Thank you for your purchase. We’ve sent a confirmation email with your order details.
+        </p>
+
+        {/* Action Buttons using Shadcn */}
+        <div className="flex flex-col gap-3">
+          <Button 
+            onClick={() => window.print()} 
+            className="w-full h-12 text-md font-semibold"
+          >
+            <Download className="mr-2 h-5 w-5" />
+            Download Receipt
+          </Button>
+
+          <Button 
+            variant="outline" 
+            asChild 
+            className="w-full h-12 text-md font-semibold"
+          >
+            <Link href="/">
+              <Home className="mr-2 h-5 w-5" />
+              Back to Home
+            </Link>
+          </Button>
+        </div>
+
+        {/* Footer Support */}
+        <p className="mt-10 text-xs text-slate-400">
+          Need assistance?{" "}
+          <a href="mailto:support@example.com" className="text-muted-foreground font-medium hover:underline">
+            Contact Support
+          </a>
+        </p>
+      </div>
     </div>
   );
 };
 
-export default page;
+export default ThankYou;

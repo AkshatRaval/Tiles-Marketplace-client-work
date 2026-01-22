@@ -33,7 +33,7 @@ export function TileCard({ tile, className }: TileCardProps) {
       };
     return {
       label: "In Stock",
-      color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+      color: "bg-emerald-200 text-emerald-900 border-emerald-700/50",
     };
   };
 
@@ -78,8 +78,8 @@ export function TileCard({ tile, className }: TileCardProps) {
             onTouchMove={() => (isDragging.current = true)}
             className="flex h-full w-full snap-x snap-mandatory overflow-x-auto touch-pan-y"
             style={{
-              scrollbarWidth: "none", // Firefox
-              msOverflowStyle: "none", // IE/Edge
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
               WebkitOverflowScrolling: "touch",
             }}
           >

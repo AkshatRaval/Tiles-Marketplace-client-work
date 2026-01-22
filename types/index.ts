@@ -64,3 +64,21 @@ export type TileCategory =
 export type TileFinish = "glossy" | "matte" | "satin" | "textured";
 export type TileStatus = "pending" | "approved" | "rejected";
 export type StockStatus = "in-stock" | "limited" | "out-of-stock";
+
+export interface Booking {
+  id: string;
+  customerName: string;
+  phone: string;
+  email: string | undefined;
+  address: string;
+  city: string;
+  quantityBox: Number;
+  pincode: string;
+  status: "PENDING" | "CONFIRMED" | "SHIPPED" | "COMPLETED" | "CANCELLED";
+  tileId: string;
+  tile: Tile;
+  userId: string;
+  user: User;
+  createdAt: string;
+  updatedAt: string;
+}

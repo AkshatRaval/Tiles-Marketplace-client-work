@@ -17,9 +17,6 @@ import type { Tile } from "@/types";
 import { TileCard } from "@/components/card/TilesCard";
 import { api } from "@/lib/api";
 
-/**
- * MUST MATCH BACKEND QUERY PARAMS
- */
 const FILTER_KEY_MAP: Record<string, string> = {
   Material: "material",
   Finish: "finish",
@@ -31,27 +28,24 @@ const AllTiles = () => {
   const [tiles, setTiles] = useState<Tile[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, string>>(
-    {}
-  );
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, string>>({});
 
-  // Initial load
   useEffect(() => {
     fetchTiles();
   }, []);
 
-  // ======================
-  // ✅ SERVER FETCH
-  // ======================
-  const fetchTiles = async () => {
+  useEffect(() => {
+    fetchTiles();
+  }, [selectedFilters]);
+
+  const fetchTiles = async (customSearch?: string) => {
     setLoading(true);
     try {
       const params: Record<string, string> = {};
-
-      if (searchQuery.trim()) {
-        params.search = searchQuery.trim();
+      const search = customSearch !== undefined ? customSearch : searchQuery;
+      if (search.trim()) {
+        params.search = search.trim();
       }
-
       Object.entries(selectedFilters).forEach(([category, value]) => {
         const key = FILTER_KEY_MAP[category];
         if (key) params[key] = value;
@@ -85,12 +79,21 @@ const AllTiles = () => {
   const clearAllFilters = () => {
     setSelectedFilters({});
     setSearchQuery("");
+    fetchTiles("");
+  };
+
+  const handleSearch = () => {
     fetchTiles();
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
   };
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 py-8 mb-6">
-      {/* Header */}
       <div className="mb-6 space-y-2">
         <h1 className="text-4xl font-serif font-bold">Browse Tiles</h1>
         <p className="text-muted-foreground">
@@ -98,37 +101,41 @@ const AllTiles = () => {
         </p>
       </div>
 
-      {/* Search */}
-      <div className="w-full mb-4 relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-        <Input
-          placeholder="Search tiles by name..."
-          className="pl-10 h-12"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+      <div className="w-full mb-4 relative flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <Input
+            placeholder="Search tiles by name..."
+            className="pl-10 h-12"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyPress={handleKeyPress}/>
+        </div>
+        <Button
+          onClick={handleSearch}
+          className="h-12 px-6"
+          disabled={loading}>
+          <Search className="w-4 h-4 mr-2"/>
+          Search
+        </Button>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 p-4 bg-secondary rounded-lg border border-dashed mb-8">
         {(Object.keys(selectedFilters).length > 0 || searchQuery) && (
           <Button
             variant="ghost"
             size="sm"
             onClick={clearAllFilters}
-            className="text-destructive"
-          >
+            className="text-destructive">
             Reset All
           </Button>
         )}
-
         {Object.entries(TILE_FILTERS).map(([categoryName, items]) => {
           const isSelected = !!selectedFilters[categoryName];
           const selectedValue = selectedFilters[categoryName];
-
           return (
             <DropdownMenu key={categoryName}>
-              <DropdownMenuTrigger asChild>
+              <DropdownMenuTrigger asChild >
                 <Button
                   variant={isSelected ? "secondary" : "outline"}
                   className="h-10 px-4 gap-2 min-w-35"
@@ -166,18 +173,8 @@ const AllTiles = () => {
             </DropdownMenu>
           );
         })}
-
-        {/* ✅ UPDATE BUTTON */}
-        <Button
-          onClick={fetchTiles}
-          className="ml-auto"
-          disabled={loading}
-        >
-          {loading ? "Updating..." : "Update"}
-        </Button>
       </div>
 
-      {/* Grid */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {[...Array(8)].map((_, i) => (

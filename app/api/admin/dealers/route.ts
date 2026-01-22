@@ -4,10 +4,10 @@ import { NextResponse } from "next/server";
 export const GET = async (req: Request) => {
   try {
     const { searchParams } = new URL(req.url);
-    
+
     // Check if this is a simple request (for dropdowns)
     const simple = searchParams.get("simple") === "true";
-    
+
     // For dropdown usage - just return id and name
     if (simple) {
       const dealers = await prisma.dealer.findMany({
@@ -73,7 +73,7 @@ export const GET = async (req: Request) => {
     console.error("Error fetching dealers:", error);
     return NextResponse.json(
       { error: "Failed to fetch dealers" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 };
@@ -83,10 +83,18 @@ export const POST = async (req: Request) => {
     const body = await req.json();
 
     // Validate required fields
-    if (!body.name || !body.shopName || !body.phone || !body.city || !body.state) {
+    if (
+      !body.name ||
+      !body.shopName ||
+      !body.phone ||
+      !body.city ||
+      !body.state
+    ) {
       return NextResponse.json(
-        { error: "Missing required fields: name, shopName, phone, city, state" },
-        { status: 400 }
+        {
+          error: "Missing required fields: name, shopName, phone, city, state",
+        },
+        { status: 400 },
       );
     }
 
@@ -109,7 +117,7 @@ export const POST = async (req: Request) => {
     console.error("Error creating dealer:", error);
     return NextResponse.json(
       { error: "Failed to create dealer" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 };

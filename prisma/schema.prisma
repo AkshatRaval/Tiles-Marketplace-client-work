@@ -25,6 +25,9 @@ enum TileCategory {
   KITCHEN
   OUTDOOR
   PREMIUM
+  PORCELAIN 
+  CERAMIC    
+  GRANITE
 }
 
 enum TileFinish {
