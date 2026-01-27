@@ -33,15 +33,14 @@ const AllTiles = () => {
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string>>({});
   const [totalCount, setTotalCount] = useState(0);
 
-  // Initialize from URL params
   useEffect(() => {
     const urlSearch = searchParams?.get("search");
     const urlCategory = searchParams?.get("category");
     const urlMaterial = searchParams?.get("material");
     const urlFinish = searchParams?.get("finish");
-
-    if (urlSearch) setSearchQuery(urlSearch);
     
+    if (urlSearch) setSearchQuery(urlSearch);
+     
     const initialFilters: Record<string, string> = {};
     if (urlCategory) initialFilters.Category = urlCategory;
     if (urlMaterial) initialFilters.Material = urlMaterial;
@@ -71,9 +70,7 @@ const AllTiles = () => {
         if (key) params[key] = value;
       });
 
-      // Use public endpoint instead of admin
-      const res = await api.get("/admin/tiles", { params });
-      
+      const res = await api.get("/public/tiles", { params });
       setTiles(Array.isArray(res.data?.tiles) ? res.data.tiles : []);
       setTotalCount(res.data?.totalCount || res.data?.tiles?.length || 0);
     } catch (err) {
@@ -173,9 +170,9 @@ const AllTiles = () => {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant={isSelected ? "default" : "outline"}
-                  className="h-10 px-4 gap-2 min-w-[120px]"
+                  className="h-10 px-4 gap-2 min-w-30"
                 >
-                  <span className="truncate max-w-[100px]">
+                  <span className="truncate max-w-25">
                     {isSelected ? selectedValue : categoryName}
                   </span>
 
@@ -193,7 +190,7 @@ const AllTiles = () => {
                 </Button>
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent align="start" className="w-[200px]">
+              <DropdownMenuContent align="start" className="w-50">
                 <DropdownMenuLabel>Select {categoryName}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {items.map((item: string) => (
@@ -231,7 +228,7 @@ const AllTiles = () => {
           </div>
           <h3 className="text-xl font-semibold mb-2">No tiles found</h3>
           <p className="text-muted-foreground mb-6">
-            {searchQuery || activeFilterCount > 0
+            {searchQuery || activeFilterCount > 0 
               ? "Try adjusting your search or filters"
               : "No tiles available at the moment"}
           </p>

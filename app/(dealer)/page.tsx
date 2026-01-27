@@ -9,41 +9,102 @@ import {
   ArrowRight,
   Star,
   Package,
-  Shield,
-  Truck,
-  Users,
-  CheckCircle,
   Sparkles,
   TrendingUp,
-  Award,
   ChevronLeft,
   ChevronRight,
   Heart,
-  BadgeCheck,
+  Flame,
+  Zap,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
+interface TileImage {
+  id: string;
+  imageUrl: string;
+}
+
+interface Dealer {
+  name: string;
+  shopName: string;
+}
+
+interface Tile {
+  id: string;
+  name: string;
+  sku: string;
+  category: string;
+  material: string;
+  size: string;
+  finish: string;
+  pricePerSqft: number;
+  pricePerBox: number;
+  stock: number;
+  description: string | null;
+  images: TileImage[];
+  dealer: Dealer;
+}
+
+interface CategoryStat {
+  category: string;
+  count: number;
+}
+
+interface Testimonial {
+  id: string;
+  name: string;
+  role: string;
+  rating: number;
+  text: string;
+  avatar: string;
+  createdAt: string;
+}
+
 const MainHome = () => {
-  const [featuredTiles, setFeaturedTiles] = useState<any[]>([]);
+  const [featuredTiles, setFeaturedTiles] = useState<Tile[]>([]);
+  const [newArrivals, setNewArrivals] = useState<Tile[]>([]);
+  const [popularTiles, setPopularTiles] = useState<Tile[]>([]);
+  const [categoryStats, setCategoryStats] = useState<CategoryStat[]>([]);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadFeaturedTiles();
-    
-    const interval = setInterval(() => {
-      setCurrentTestimonial((prev) => (prev + 1) % 3);
-    }, 5000);
-
-    return () => clearInterval(interval);
+    loadHomeData();
   }, []);
 
-  const loadFeaturedTiles = async () => {
+  useEffect(() => {
+    if (testimonials.length > 0) {
+      const interval = setInterval(() => {
+        setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [testimonials.length]);
+
+  const loadHomeData = async () => {
     try {
-      const response = await api.get("/tiles", { params: { limit: 8 } });
-      setFeaturedTiles(response.data.tiles || []);
+      setLoading(true);
+      
+      // Load all data in parallel
+      const [featuredRes, newArrivalsRes, popularRes, categoriesRes, testimonialsRes] = await Promise.all([
+        api.get("/admin/tiles", { params: { limit: 8, page: 1 } }),
+        api.get("/admin/tiles", { params: { limit: 8, page: 1 } }), // You can add different sorting later
+        api.get("/admin/tiles", { params: { limit: 4, page: 1 } }), // You can add different sorting later
+        api.get("/stats/categories"),
+        api.get("/stats/testimonials", { params: { limit: 5, featured: true } }),
+      ]);
+
+      setFeaturedTiles(featuredRes.data.tiles || []);
+      setNewArrivals(newArrivalsRes.data.tiles || []);
+      setPopularTiles(popularRes.data.tiles || []);
+      setCategoryStats(categoriesRes.data.categories || []);
+      setTestimonials(testimonialsRes.data.testimonials || []);
     } catch (error) {
-      console.error("Failed to load tiles:", error);
+      console.error("Failed to load home data:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -55,36 +116,63 @@ const MainHome = () => {
     }
   };
 
-  const categories = [
-    { name: "Floor Tiles", count: "500+", link: "/tiles?category=FLOOR" },
-    { name: "Wall Tiles", count: "400+", link: "/tiles?category=WALL" },
-    { name: "Bathroom", count: "300+", link: "/tiles?category=BATHROOM" },
-    { name: "Kitchen", count: "250+", link: "/tiles?category=KITCHEN" },
-  ];
+  // Map category stats to display format
+  const categories = categoryStats.map((stat) => ({
+    name: stat.category.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase()),
+    count: `${stat.count}+`,
+    link: `/tiles?category=${stat.category}`,
+  }));
 
-  const stats = [
-    { value: "5000+", label: "Premium Tiles", icon: Package },
-    { value: "10,000+", label: "Happy Customers", icon: Users },
-    { value: "50+", label: "Trusted Dealers", icon: Award },
-    { value: "100%", label: "Quality Assured", icon: BadgeCheck },
-  ];
-
-  const features = [
-    { icon: Shield, title: "Quality Guaranteed", description: "100% authentic products from verified dealers" },
-    { icon: Truck, title: "Fast Delivery", description: "Quick and safe delivery across India" },
-    { icon: BadgeCheck, title: "Certified Dealers", description: "Work with trusted and verified suppliers" },
-    { icon: CheckCircle, title: "Best Prices", description: "Competitive pricing with exclusive deals" },
-  ];
-
-  const testimonials = [
-    { name: "Priya Sharma", role: "Homeowner, Mumbai", rating: 5, text: "Found the perfect tiles for my kitchen renovation! The quality is outstanding and delivery was super fast.", avatar: "PS" },
-    { name: "Rajesh Kumar", role: "Interior Designer, Delhi", rating: 5, text: "As a professional designer, I need reliable suppliers. This platform has never disappointed me.", avatar: "RK" },
-    { name: "Anita Desai", role: "Architect, Bangalore", rating: 5, text: "The best platform for sourcing tiles. Easy to compare prices and amazing quality!", avatar: "AD" },
-  ];
+  const renderTileCard = (tile: Tile) => (
+    <Link key={tile.id} href={`/tiles/${tile.id}`}>
+      <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 border hover:border-primary/50">
+        <div className="relative aspect-square overflow-hidden bg-muted">
+          {tile.images?.[0] ? (
+            <Image
+              src={tile.images[0].imageUrl}
+              alt={tile.name}
+              fill
+              className="object-cover group-hover:scale-110 transition-transform duration-500"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Package className="w-12 h-12 text-muted-foreground" />
+            </div>
+          )}
+          <div className="absolute top-3 left-3">
+            <span className="bg-primary text-primary-foreground px-2 py-1 rounded-md text-xs font-bold">
+              {tile.stock > 0 ? "IN STOCK" : "OUT OF STOCK"}
+            </span>
+          </div>
+          <button className="absolute top-3 right-3 w-8 h-8 bg-background rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+            <Heart className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-4">
+          <div className="text-xs text-primary font-semibold mb-1 uppercase">
+            {tile.category.replace(/_/g, " ")}
+          </div>
+          <h3 className="font-bold mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+            {tile.name}
+          </h3>
+          <div className="flex items-center gap-1 mb-3">
+            {[...Array(5)].map((_, i) => (
+              <Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+            ))}
+            <span className="text-xs text-muted-foreground ml-1">(4.8)</span>
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className="text-xl font-bold">₹{tile.pricePerSqft}</span>
+            <span className="text-xs text-muted-foreground">/sq ft</span>
+          </div>
+        </div>
+      </Card>
+    </Link>
+  );
 
   return (
     <div className="bg-background">
-      {/* YOUR EXISTING HERO - UNCHANGED */}
+      {/* Hero Section */}
       <div className="relative w-full h-[600px] flex items-center">
         <Image
           src="/heroPage.jpg"
@@ -132,23 +220,6 @@ const MainHome = () => {
         </div>
       </div>
 
-      {/* Stats Section */}
-      <div className="bg-card border-y py-12">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="inline-flex items-center justify-center w-14 h-14 bg-primary/10 rounded-full mb-3">
-                  <stat.icon className="w-7 h-7 text-primary" />
-                </div>
-                <div className="text-3xl md:text-4xl font-bold mb-1">{stat.value}</div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* Featured Products */}
       <div className="py-16 max-w-7xl mx-auto px-6">
         <div className="flex items-center justify-between mb-10">
@@ -167,53 +238,19 @@ const MainHome = () => {
           </Link>
         </div>
 
-        {featuredTiles.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredTiles.slice(0, 8).map((tile) => (
-              <Link key={tile.id} href={`/tiles/${tile.id}`}>
-                <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 border hover:border-primary/50">
-                  <div className="relative aspect-square overflow-hidden bg-muted">
-                    {tile.images?.[0] ? (
-                      <Image
-                        src={tile.images[0].imageUrl}
-                        alt={tile.name}
-                        fill
-                        className="object-cover group-hover:scale-110 transition-transform duration-500"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Package className="w-12 h-12 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="absolute top-3 left-3">
-                      <span className="bg-primary text-primary-foreground px-2 py-1 rounded-md text-xs font-bold">NEW</span>
-                    </div>
-                    <button className="absolute top-3 right-3 w-8 h-8 bg-background rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                      <Heart className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div className="p-4">
-                    <div className="text-xs text-primary font-semibold mb-1 uppercase">{tile.category}</div>
-                    <h3 className="font-bold mb-2 line-clamp-2 group-hover:text-primary transition-colors">{tile.name}</h3>
-                    <div className="flex items-center gap-1 mb-3">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                      ))}
-                      <span className="text-xs text-muted-foreground ml-1">(4.8)</span>
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-xl font-bold">${tile.pricePerSqft}</span>
-                      <span className="text-xs text-muted-foreground">/sq ft</span>
-                    </div>
-                  </div>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        ) : (
+        {loading ? (
           <div className="text-center py-12">
             <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
             <p className="text-muted-foreground">Loading products...</p>
+          </div>
+        ) : featuredTiles.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {featuredTiles.map(renderTileCard)}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <Package className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">No tiles available at the moment</p>
           </div>
         )}
       </div>
@@ -225,44 +262,111 @@ const MainHome = () => {
             <h2 className="text-3xl md:text-4xl font-bold mb-3">Shop by Category</h2>
             <p className="text-muted-foreground">Find tiles for every space</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {categories.map((cat, index) => (
-              <Link key={index} href={cat.link}>
-                <Card className="group p-6 hover:shadow-xl transition-all duration-300 cursor-pointer border-2 hover:border-primary">
-                  <h3 className="text-xl font-bold mb-1 group-hover:text-primary transition-colors">{cat.name}</h3>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground">{cat.count} Products</span>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                  </div>
-                </Card>
-              </Link>
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
+            </div>
+          ) : categories.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {categories.map((cat, index) => (
+                <Link key={index} href={cat.link}>
+                  <Card className="group p-6 hover:shadow-xl transition-all duration-300 cursor-pointer border-2 hover:border-primary">
+                    <h3 className="text-xl font-bold mb-1 group-hover:text-primary transition-colors">
+                      {cat.name}
+                    </h3>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        {cat.count} Products
+                      </span>
+                      <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">No categories available</p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Features */}
+      {/* New Arrivals */}
       <div className="py-16 max-w-7xl mx-auto px-6">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl md:text-4xl font-bold mb-3">Why Choose Us</h2>
-          <p className="text-muted-foreground">Your trusted partner</p>
+        <div className="flex items-center justify-between mb-10">
+          <div>
+            <div className="inline-flex items-center gap-2 bg-green-500/10 px-3 py-1 rounded-full mb-3">
+              <Zap className="w-4 h-4 text-green-600" />
+              <span className="text-green-600 text-xs font-bold uppercase">New Arrivals</span>
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold">Fresh Collection</h2>
+            <p className="text-muted-foreground mt-2">Latest tiles just added</p>
+          </div>
+          <Link href="/tiles">
+            <Button variant="outline" className="hidden md:flex">
+              View All <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {features.map((feature, index) => (
-            <Card key={index} className="p-6 hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                <feature.icon className="w-6 h-6 text-primary" />
+
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading products...</p>
+          </div>
+        ) : newArrivals.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {newArrivals.map(renderTileCard)}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <Package className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">No new arrivals at the moment</p>
+          </div>
+        )}
+      </div>
+
+      {/* Popular Picks */}
+      <div className="bg-muted py-16">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex items-center justify-between mb-10">
+            <div>
+              <div className="inline-flex items-center gap-2 bg-orange-500/10 px-3 py-1 rounded-full mb-3">
+                <Flame className="w-4 h-4 text-orange-600" />
+                <span className="text-orange-600 text-xs font-bold uppercase">Hot Picks</span>
               </div>
-              <h3 className="font-bold text-lg mb-2">{feature.title}</h3>
-              <p className="text-sm text-muted-foreground">{feature.description}</p>
-            </Card>
-          ))}
+              <h2 className="text-3xl md:text-4xl font-bold">Most Popular</h2>
+              <p className="text-muted-foreground mt-2">Customer favorites</p>
+            </div>
+            <Link href="/tiles">
+              <Button variant="outline" className="hidden md:flex">
+                View All <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading products...</p>
+            </div>
+          ) : popularTiles.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {popularTiles.map(renderTileCard)}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Package className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No popular tiles at the moment</p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Testimonials */}
-      <div className="bg-muted py-16">
-        <div className="max-w-5xl mx-auto px-6">
+      {testimonials.length > 0 && (
+        <div className="py-16 max-w-5xl mx-auto px-6">
           <div className="text-center mb-10">
             <h2 className="text-3xl md:text-4xl font-bold mb-3">Customer Reviews</h2>
             <p className="text-muted-foreground">What our customers say</p>
@@ -270,7 +374,7 @@ const MainHome = () => {
           <div className="relative">
             <Card className="p-8 md:p-12">
               <div className="flex justify-center gap-1 mb-6">
-                {[...Array(5)].map((_, i) => (
+                {[...Array(testimonials[currentTestimonial].rating)].map((_, i) => (
                   <Star key={i} className="w-6 h-6 fill-yellow-400 text-yellow-400" />
                 ))}
               </div>
@@ -287,30 +391,34 @@ const MainHome = () => {
                 </div>
               </div>
             </Card>
-            <button
-              onClick={() => setCurrentTestimonial((prev) => (prev - 1 + 3) % 3)}
-              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-5 w-10 h-10 bg-background border-2 rounded-full flex items-center justify-center hover:bg-muted transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setCurrentTestimonial((prev) => (prev + 1) % 3)}
-              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-5 w-10 h-10 bg-background border-2 rounded-full flex items-center justify-center hover:bg-muted transition-colors"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-            <div className="flex justify-center gap-2 mt-6">
-              {testimonials.map((_, index) => (
+            {testimonials.length > 1 && (
+              <>
                 <button
-                  key={index}
-                  onClick={() => setCurrentTestimonial(index)}
-                  className={`h-2 rounded-full transition-all ${index === currentTestimonial ? "bg-primary w-8" : "bg-muted-foreground/30 w-2"}`}
-                />
-              ))}
-            </div>
+                  onClick={() => setCurrentTestimonial((prev) => (prev - 1 + testimonials.length) % testimonials.length)}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-5 w-10 h-10 bg-background border-2 rounded-full flex items-center justify-center hover:bg-muted transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setCurrentTestimonial((prev) => (prev + 1) % testimonials.length)}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-5 w-10 h-10 bg-background border-2 rounded-full flex items-center justify-center hover:bg-muted transition-colors"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+                <div className="flex justify-center gap-2 mt-6">
+                  {testimonials.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentTestimonial(index)}
+                      className={`h-2 rounded-full transition-all ${index === currentTestimonial ? "bg-primary w-8" : "bg-muted-foreground/30 w-2"}`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
-      </div>
+      )}
 
       {/* CTA */}
       <div className="py-20 bg-primary">

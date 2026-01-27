@@ -27,7 +27,8 @@ const AdminBookings = () => {
   };
   useEffect(() => {
     fetchBookings();
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <div className="min-h-screen bg-background p-8 space-y-6">
       <div className="flex justify-between items-center">

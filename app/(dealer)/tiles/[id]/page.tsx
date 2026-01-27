@@ -316,43 +316,6 @@ export default function ProductPage() {
                 )}
               </div>
 
-              {/* Trust Badges */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
-                  <Shield className="w-6 h-6 text-blue-600" />
-                  <div>
-                    <div className="font-semibold text-sm">Quality</div>
-                    <div className="text-xs text-muted-foreground">
-                      Guaranteed
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
-                  <Truck className="w-6 h-6 text-green-600" />
-                  <div>
-                    <div className="font-semibold text-sm">Shipping</div>
-                    <div className="text-xs text-muted-foreground">
-                      3-5 Days
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
-                  <RefreshCw className="w-6 h-6 text-purple-600" />
-                  <div>
-                    <div className="font-semibold text-sm">Returns</div>
-                    <div className="text-xs text-muted-foreground">30 Days</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
-                  <Award className="w-6 h-6 text-orange-600" />
-                  <div>
-                    <div className="font-semibold text-sm">Certified</div>
-                    <div className="text-xs text-muted-foreground">
-                      ISO Quality
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
 

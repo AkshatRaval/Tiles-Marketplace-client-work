@@ -11,42 +11,29 @@ datasource db {
 // ENUMS
 /////////////////////////////////////////////////
 
-enum UserRole {
-  CUSTOMER
-  DEALER
-  ADMIN
-}
-
 enum TileCategory {
-  NOTDEFINED
   FLOOR
   WALL
   BATHROOM
   KITCHEN
   OUTDOOR
-  PREMIUM
-  PORCELAIN 
-  CERAMIC    
-  GRANITE
 }
 
 enum TileFinish {
-  NOTDEFINED
   GLOSSY
   MATTE
   SATIN
 }
 
 enum BookingStatus {
-  PENDING
+  NEW
+  CONTACTED
   CONFIRMED
-  SHIPPED
-  COMPLETED
   CANCELLED
 }
 
 /////////////////////////////////////////////////
-// ADMIN (ONLY SYSTEM OPERATOR)
+// ADMIN (SYSTEM OPERATOR)
 /////////////////////////////////////////////////
 
 model Admin {
@@ -58,7 +45,7 @@ model Admin {
 }
 
 /////////////////////////////////////////////////
-// DEALER (INTERNAL ONLY, NEVER SHOWN TO USER)
+// DEALER (INTERNAL, NOT SHOWN TO USERS)
 /////////////////////////////////////////////////
 
 model Dealer {
@@ -66,10 +53,8 @@ model Dealer {
   name      String
   shopName  String
   phone     String
-  email     String?
   city      String
   state     String
-  country   String   @default("India")
   isActive  Boolean  @default(true)
 
   tiles     Tile[]
@@ -83,30 +68,35 @@ model Dealer {
 /////////////////////////////////////////////////
 
 model Tile {
-  id           String       @id @default(uuid())
+  id           String        @id @default(uuid())
   name         String
-  sku          String       @unique
-  size         String
+  sku          String        @unique
+
+  category     TileCategory
   material     String
   finish       TileFinish
-  category     TileCategory
+  size         String
+
   pricePerSqft Float
   pricePerBox  Float
   stock        Int
-  isPublished  Boolean      @default(true)
+
   description  String?
   pdfUrl       String?
+  isPublished  Boolean       @default(true)
 
   dealerId     String
-  dealer       Dealer       @relation(fields: [dealerId], references: [id])
-
+  dealer       Dealer        @relation(fields: [dealerId], references: [id])
   images       TileImage[]
+  cartItems    CartItem[]
   bookings     Booking[]
+  reviews      Review[]
 
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
-  @@index([createdAt])
+  @@index([category])
+  @@index([isPublished])
 }
 
 /////////////////////////////////////////////////
@@ -114,11 +104,11 @@ model Tile {
 /////////////////////////////////////////////////
 
 model TileImage {
-  id       String @id @default(uuid())
-  imageUrl String
+  id        String   @id @default(uuid())
+  imageUrl  String
 
-  tileId String
-  tile   Tile   @relation(fields: [tileId], references: [id], onDelete: Cascade)
+  tileId    String
+  tile      Tile     @relation(fields: [tileId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 }
@@ -128,44 +118,92 @@ model TileImage {
 /////////////////////////////////////////////////
 
 model EndUser {
-  id         String    @id @default(uuid())
-  name       String
-  email      String    @unique
-  role       UserRole  @default(CUSTOMER)
-  duty       String?
-  lookingFor String?
-  referral   String?
-  phone      String?
-  city       String?
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  phone     String?
+  city      String?
 
-  bookings   Booking[]
+  cart      Cart?
+  bookings  Booking[]
 
-  createdAt  DateTime  @default(now())
+  createdAt DateTime @default(now())
 }
 
 /////////////////////////////////////////////////
-// BOOKING (DROP-SHIPPING FLOW)
+// CART (ONE ACTIVE CART PER USER)
+/////////////////////////////////////////////////
+
+model Cart {
+  id        String     @id @default(uuid())
+
+  userId    String     @unique
+  user      EndUser   @relation(fields: [userId], references: [id])
+
+  items     CartItem[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+/////////////////////////////////////////////////
+// CART ITEM (MULTIPLE TILES IN CART)
+/////////////////////////////////////////////////
+
+model CartItem {
+  id          String   @id @default(uuid())
+
+  cartId      String
+  cart        Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  tileId      String
+  tile        Tile     @relation(fields: [tileId], references: [id])
+
+  quantityBox Int
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([cartId, tileId])
+}
+
+/////////////////////////////////////////////////
+// BOOKING (FINAL ENQUIRY / DROP-SHIP REQUEST)
 /////////////////////////////////////////////////
 
 model Booking {
-  id           String        @id @default(uuid())
-  customerName String
-  phone        String
-  email        String?
-  address      String
-  city         String
-  pincode      String?
-  quantityBox  Int
-  status       BookingStatus @default(PENDING)
+  id            String        @id @default(uuid())
 
-  tileId       String
-  tile         Tile          @relation(fields: [tileId], references: [id])
+  customerName  String
+  phone         String
+  email         String?
+  city          String
+  address       String?
 
-  userId       String?
-  user         EndUser?      @relation(fields: [userId], references: [id])
+  quantityBox   Int
+  status        BookingStatus @default(NEW)
 
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  tileId        String
+  tile          Tile          @relation(fields: [tileId], references: [id])
+
+  userId        String?
+  user          EndUser?      @relation(fields: [userId], references: [id])
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   @@index([status])
+  @@index([tileId])
+}
+model Review {
+  id        String   @id @default(uuid())
+
+  tileId    String
+  tile      Tile     @relation(fields: [tileId], references: [id], onDelete: Cascade)
+
+  name      String
+  rating    Int      // 1–5
+  comment   String?
+
+  createdAt DateTime @default(now())
 }

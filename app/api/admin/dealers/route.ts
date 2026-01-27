@@ -32,7 +32,6 @@ export const GET = async (req: Request) => {
       ? {
           OR: [
             { name: { contains: search, mode: "insensitive" as const } },
-            { email: { contains: search, mode: "insensitive" as const } },
             { phone: { contains: search, mode: "insensitive" as const } },
             { city: { contains: search, mode: "insensitive" as const } },
             { state: { contains: search, mode: "insensitive" as const } },
@@ -98,16 +97,14 @@ export const POST = async (req: Request) => {
       );
     }
 
-    // Create new dealer
+    // Create new dealer (schema has no email/country fields)
     const dealer = await prisma.dealer.create({
       data: {
         name: body.name,
         shopName: body.shopName,
         phone: body.phone,
-        email: body.email || null,
         city: body.city,
         state: body.state,
-        country: body.country || "India",
         isActive: body.isActive !== undefined ? body.isActive : true,
       },
     });
