@@ -89,9 +89,9 @@ const MainHome = () => {
       
       // Load all data in parallel
       const [featuredRes, newArrivalsRes, popularRes, categoriesRes, testimonialsRes] = await Promise.all([
-        api.get("/admin/tiles", { params: { limit: 8, page: 1 } }),
-        api.get("/admin/tiles", { params: { limit: 8, page: 1 } }), // You can add different sorting later
-        api.get("/admin/tiles", { params: { limit: 4, page: 1 } }), // You can add different sorting later
+        api.get("/public/tiles", { params: { limit: 8, page: 1 } }),
+        api.get("/public/tiles", { params: { limit: 8, page: 1 } }), // You can add different sorting later
+        api.get("/public/tiles", { params: { limit: 4, page: 1 } }), // You can add different sorting later
         api.get("/stats/categories"),
         api.get("/stats/testimonials", { params: { limit: 5, featured: true } }),
       ]);

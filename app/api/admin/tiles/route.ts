@@ -97,10 +97,10 @@ export async function POST(req: Request) {
         stock: Math.round(Number(stock)) || 0, // Ensure Int
         description: description || null,
         pdfUrl: pdfUrl || null,
+        dealerId: dealerId || null,
         dealer: {
           connect: { id: dealerId },
         },
-        // Nested write for TileImage model
         images: {
           create: imageUrls.map((url: string) => ({
             imageUrl: url,

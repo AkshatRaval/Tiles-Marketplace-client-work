@@ -77,7 +77,7 @@ export default function LoginPage() {
               className="object-cover"
               priority
             />
-            <div className="absolute inset-0 bg-black/30" />
+            <div className="absolute inset-0 bg-black/30"/>
           </div>
 
           <div className="relative z-10">
@@ -86,7 +86,7 @@ export default function LoginPage() {
               <div className="h-px w-12 bg-white/60"></div>
             </div>
           </div>
-
+          
           <div className="relative z-10 max-w-lg mb-10">
             <h1 className="font-serif text-6xl leading-tight mb-6">
               Get <br /> Everything <br /> You Want

@@ -1,22 +1,36 @@
+// app/api/stats/testimonials/route.ts
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const limit = parseInt(searchParams.get("limit") || "5");
 
+    // Get top-rated reviews to use as testimonials
     const reviews = await prisma.review.findMany({
+      where: {
+        rating: { gte: 4 }, // Only 4-5 star reviews
+        comment: { not: null }, // Must have a comment
+      },
+      include: {
+        tile: {
+          select: {
+            name: true,
+          },
+        },
+      },
+      orderBy: { rating: "desc" },
       take: limit,
-      orderBy: { createdAt: "desc" },
     });
 
+    // Transform reviews into testimonial format
     const testimonials = reviews.map((review) => ({
       id: review.id,
       name: review.name,
-      role: "Customer",
+      role: "Customer", // Or you can make this dynamic
       rating: review.rating,
-      text: review.comment ?? "",
+      text: review.comment || "",
       avatar: review.name.substring(0, 2).toUpperCase(),
       createdAt: review.createdAt,
     }));
@@ -28,55 +42,6 @@ export async function GET(req: Request) {
     console.error("TESTIMONIALS_ERROR:", error);
     return NextResponse.json(
       { error: "Failed to fetch testimonials" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-    const { name, role, rating, text, avatar, tileId } = body;
-
-    // Validation
-    if (!name || !rating || !text || !tileId) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
-
-    if (rating < 1 || rating > 5) {
-      return NextResponse.json(
-        { error: "Rating must be between 1 and 5" },
-        { status: 400 }
-      );
-    }
-
-    const review = await prisma.review.create({
-      data: {
-        name,
-        rating,
-        comment: text,
-        tile: { connect: { id: tileId } },
-      },
-    });
-
-    const testimonial = {
-      id: review.id,
-      name: review.name,
-      role: role || "Customer",
-      rating: review.rating,
-      text: review.comment ?? "",
-      avatar: avatar || review.name.substring(0, 2).toUpperCase(),
-      createdAt: review.createdAt,
-    };
-
-    return NextResponse.json(testimonial, { status: 201 });
-  } catch (error) {
-    console.error("CREATE_TESTIMONIAL_ERROR:", error);
-    return NextResponse.json(
-      { error: "Failed to create testimonial" },
       { status: 500 }
     );
   }

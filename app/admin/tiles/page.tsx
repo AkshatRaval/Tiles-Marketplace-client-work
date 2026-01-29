@@ -10,6 +10,8 @@ import {
   Eye,
   Pencil,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import Image from "next/image";
@@ -27,6 +29,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 
 import {
@@ -35,6 +38,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +63,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
+import { useRouter } from "next/navigation";
 
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!;
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
@@ -79,8 +94,11 @@ const AdminTiles = () => {
   const [tiles, setTiles] = useState<any[]>([]);
   const [selectedTile, setSelectedTile] = useState<any | null>(null);
   const [editingTile, setEditingTile] = useState<any | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [tileToDelete, setTileToDelete] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [filters, setFilters] = useState<{
     category?: string;
     material?: string;
@@ -88,10 +106,8 @@ const AdminTiles = () => {
     size?: string;
   }>({});
 
-  // ✅ NEW: Dealers state
   const [dealers, setDealers] = useState<any[]>([]);
 
-  /* ✅ NEW: FILE STATES (NO UPLOAD HERE) */
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [selectedPdf, setSelectedPdf] = useState<File | null>(null);
 
@@ -141,7 +157,8 @@ const AdminTiles = () => {
         ...overrides,
       };
 
-      if (effectiveFilters.material) params.material = effectiveFilters.material;
+      if (effectiveFilters.material)
+        params.material = effectiveFilters.material;
       if (effectiveFilters.finish) params.finish = effectiveFilters.finish;
       if (effectiveFilters.category)
         params.category = effectiveFilters.category;
@@ -157,7 +174,6 @@ const AdminTiles = () => {
     }
   };
 
-  // ✅ NEW: Fetch dealers for dropdown
   const fetchDealers = async () => {
     try {
       const res = await api.get("/admin/dealers?simple=true");
@@ -171,8 +187,6 @@ const AdminTiles = () => {
   const updateField = (name: string, value: any) => {
     setFormdata((prev) => ({ ...prev, [name]: value }));
   };
-
-  /* ================= FILE SELECT (NO UPLOAD) ================= */
 
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -197,8 +211,6 @@ const AdminTiles = () => {
     }
   };
 
-  /* ================= SUBMIT = UPLOAD ================= */
-
   const handleAddTile = async () => {
     setLoading(true);
     try {
@@ -207,18 +219,15 @@ const AdminTiles = () => {
         return;
       }
 
-      // 1️⃣ Upload images
       const imageUrls = await Promise.all(
         selectedImages.map((file) => uploadToCloudinary(file, "image")),
       );
 
-      // 2️⃣ Upload PDF (optional)
       let pdfUrl = "";
       if (selectedPdf) {
         pdfUrl = await uploadToCloudinary(selectedPdf, "raw");
       }
 
-      // 3️⃣ Send to backend
       const payload = {
         name: formdata.name || "NOTDEFINED",
         sku: formdata.sku || "NOTDEFINED",
@@ -296,14 +305,20 @@ const AdminTiles = () => {
     }
   };
 
-  const handleDeleteTile = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this tile?")) return;
+  const confirmDelete = (id: string) => {
+    setTileToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteTile = async () => {
+    if (!tileToDelete) return;
     setLoading(true);
     try {
-      await api.delete(`/admin/tiles/${id}`);
+      await api.delete(`/admin/tiles/${tileToDelete}`);
       await fetchTiles();
-      if (selectedTile?.id === id) setSelectedTile(null);
-      alert("Tile deleted");
+      if (selectedTile?.id === tileToDelete) setSelectedTile(null);
+      setDeleteDialogOpen(false);
+      setTileToDelete(null);
     } catch (e) {
       console.error(e);
       alert("Failed to delete tile");
@@ -312,6 +327,24 @@ const AdminTiles = () => {
     }
   };
 
+  const nextImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (selectedTile?.images) {
+      setCurrentImageIndex((prev) =>
+        prev === selectedTile.images.length - 1 ? 0 : prev + 1,
+      );
+    }
+  };
+
+  const prevImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (selectedTile?.images) {
+      setCurrentImageIndex((prev) =>
+        prev === 0 ? selectedTile.images.length - 1 : prev - 1,
+      );
+    }
+  };
+  const router = useRouter();
   return (
     <div className="min-h-screen bg-background p-8 space-y-6">
       {/* HEADER */}
@@ -330,10 +363,8 @@ const AdminTiles = () => {
             </Button>
           </SheetTrigger>
 
-          {/* ===================== ADD TILE SHEET ===================== */}
           <SheetContent side="right" className="w-full sm:max-w-xl p-0">
             <div className="flex flex-col h-full bg-background">
-              {/* ================= HEADER ================= */}
               <div className="p-8 border-b bg-muted/40">
                 <SheetTitle className="text-3xl font-black uppercase tracking-tight">
                   Add New Tile
@@ -343,9 +374,7 @@ const AdminTiles = () => {
                 </p>
               </div>
 
-              {/* ================= FORM ================= */}
               <form className="flex-1 overflow-y-auto p-8 space-y-10">
-                {/* ===== MEDIA ===== */}
                 <section className="space-y-4">
                   <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                     Media & Documents
@@ -380,7 +409,6 @@ const AdminTiles = () => {
                   </div>
                 </section>
 
-                {/* ===== BASIC INFO ===== */}
                 <section className="space-y-6">
                   <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                     Basic Information
@@ -414,7 +442,6 @@ const AdminTiles = () => {
                   </div>
                 </section>
 
-                {/* ===== CLASSIFICATION ===== */}
                 <section className="space-y-6">
                   <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                     Classification
@@ -453,7 +480,6 @@ const AdminTiles = () => {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    {/* ✅ CHANGED: Tile Size - Now using Select */}
                     <div className="space-y-2">
                       <Label>Tile Size</Label>
                       <Select onValueChange={(v) => updateField("size", v)}>
@@ -472,7 +498,6 @@ const AdminTiles = () => {
                       </Select>
                     </div>
 
-                    {/* ✅ CHANGED: Material - Now using Select */}
                     <div className="space-y-2">
                       <Label>Material</Label>
                       <Select onValueChange={(v) => updateField("material", v)}>
@@ -494,7 +519,6 @@ const AdminTiles = () => {
                   </div>
                 </section>
 
-                {/* ===== PRICING ===== */}
                 <section className="space-y-6">
                   <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                     Pricing
@@ -525,7 +549,6 @@ const AdminTiles = () => {
                   </div>
                 </section>
 
-                {/* ===== INVENTORY & DEALER ===== */}
                 <section className="space-y-6 pb-10">
                   <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                     Inventory & Dealer
@@ -565,7 +588,6 @@ const AdminTiles = () => {
                 </section>
               </form>
 
-              {/* ================= FOOTER ================= */}
               <div className="p-6 border-t bg-background flex gap-4">
                 <SheetClose asChild>
                   <Button variant="outline" className="flex-1">
@@ -597,7 +619,10 @@ const AdminTiles = () => {
       <div className="bg-card border rounded-xl p-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex-1 flex items-center gap-3">
           <div className="relative w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              size={18}
+            />
             <Input
               placeholder="Search by name or SKU..."
               className="pl-10"
@@ -685,7 +710,10 @@ const AdminTiles = () => {
           <div
             key={tile.id}
             className="bg-card border rounded-xl overflow-hidden hover:shadow-lg transition-shadow cursor-pointer flex flex-col"
-            onClick={() => setSelectedTile(tile)}
+            onClick={() => {
+              setSelectedTile(tile);
+              setCurrentImageIndex(0);
+            }}
           >
             <div className="relative w-full aspect-square bg-muted">
               {tile.images?.[0]?.imageUrl ? (
@@ -723,7 +751,7 @@ const AdminTiles = () => {
                   className="h-8 w-8"
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDeleteTile(tile.id);
+                    confirmDelete(tile.id);
                   }}
                 >
                   <Trash2 size={14} />
@@ -735,7 +763,9 @@ const AdminTiles = () => {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="font-bold line-clamp-2">{tile.name}</h3>
-                  <p className="text-xs text-muted-foreground">SKU: {tile.sku}</p>
+                  <p className="text-xs text-muted-foreground">
+                    SKU: {tile.sku}
+                  </p>
                 </div>
               </div>
 
@@ -751,7 +781,10 @@ const AdminTiles = () => {
                 <div>
                   <div className="text-lg font-bold">
                     ₹{tile.pricePerSqft}
-                    <span className="text-xs text-muted-foreground"> /sqft</span>
+                    <span className="text-xs text-muted-foreground">
+                      {" "}
+                      /sqft
+                    </span>
                   </div>
                   <div className="text-xs text-muted-foreground">
                     ₹{tile.pricePerBox} /box
@@ -776,7 +809,7 @@ const AdminTiles = () => {
         )}
       </div>
 
-      {/* ===================== DETAILS DIALOG ===================== */}
+      {/* DETAILS DIALOG WITH HORIZONTAL SCROLL */}
       <Dialog open={!!selectedTile} onOpenChange={() => setSelectedTile(null)}>
         <DialogContent className="max-w-2xl">
           {selectedTile && (
@@ -786,6 +819,52 @@ const AdminTiles = () => {
                   {selectedTile.name}
                 </DialogTitle>
               </DialogHeader>
+
+              {/* Image Carousel */}
+              {selectedTile.images && selectedTile.images.length > 0 && (
+                <div className="relative w-full aspect-video bg-muted rounded-lg overflow-hidden mb-4">
+                  <Image
+                    src={selectedTile.images[currentImageIndex].imageUrl}
+                    alt={selectedTile.name}
+                    fill
+                    className="object-cover"
+                  />
+
+                  {selectedTile.images.length > 1 && (
+                    <>
+                      <button
+                        onClick={prevImage}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center transition-colors"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={nextImage}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center transition-colors"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+
+                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                        {selectedTile.images.map((_: any, idx: number) => (
+                          <button
+                            key={idx}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentImageIndex(idx);
+                            }}
+                            className={`h-1.5 rounded-full transition-all ${
+                              idx === currentImageIndex
+                                ? "bg-white w-6"
+                                : "bg-white/50 w-1.5"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-6 text-sm mt-4">
                 <div>
@@ -808,7 +887,16 @@ const AdminTiles = () => {
                   <b>Stock:</b> {selectedTile.stock} boxes
                 </div>
                 <div>
-                  <b>Dealer:</b> {selectedTile.dealer?.name || "—"}
+                  <b>Dealer:</b>{" "}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/admin/dealers/${selectedTile.dealer?.id}`);
+                    }}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    {selectedTile.dealer?.name || "—"}
+                  </button>
                 </div>
                 <div>
                   <b>Created:</b>{" "}
@@ -826,7 +914,7 @@ const AdminTiles = () => {
         </DialogContent>
       </Dialog>
 
-      {/* EDIT TILE DIALOG */}
+      {/* EDIT TILE DIALOG WITH SELECTS */}
       <Dialog open={!!editingTile} onOpenChange={() => setEditingTile(null)}>
         <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           {editingTile && (
@@ -837,172 +925,266 @@ const AdminTiles = () => {
                 </DialogTitle>
               </DialogHeader>
 
-              <div className="space-y-4 mt-4">
-                <div className="space-y-2">
-                  <Label>Name</Label>
-                  <Input
-                    value={editingTile.name}
-                    onChange={(e) =>
-                      setEditingTile({ ...editingTile, name: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>SKU</Label>
-                  <Input
-                    value={editingTile.sku}
-                    onChange={(e) =>
-                      setEditingTile({ ...editingTile, sku: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Category</Label>
-                    <Input
-                      value={editingTile.category}
-                      onChange={(e) =>
-                        setEditingTile({
-                          ...editingTile,
-                          category: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Finish</Label>
-                    <Input
-                      value={editingTile.finish}
-                      onChange={(e) =>
-                        setEditingTile({
-                          ...editingTile,
-                          finish: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Size</Label>
-                    <Input
-                      value={editingTile.size}
-                      onChange={(e) =>
-                        setEditingTile({
-                          ...editingTile,
-                          size: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Material</Label>
-                    <Input
-                      value={editingTile.material}
-                      onChange={(e) =>
-                        setEditingTile({
-                          ...editingTile,
-                          material: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Price per Sqft (₹)</Label>
-                    <Input
-                      type="number"
-                      value={editingTile.pricePerSqft}
-                      onChange={(e) =>
-                        setEditingTile({
-                          ...editingTile,
-                          pricePerSqft: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Price per Box (₹)</Label>
-                    <Input
-                      type="number"
-                      value={editingTile.pricePerBox}
-                      onChange={(e) =>
-                        setEditingTile({
-                          ...editingTile,
-                          pricePerBox: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Stock (boxes)</Label>
-                    <Input
-                      type="number"
-                      value={editingTile.stock}
-                      onChange={(e) =>
-                        setEditingTile({
-                          ...editingTile,
-                          stock: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Dealer</Label>
-                    <Select
-                      value={editingTile.dealerId || editingTile.dealer?.id}
-                      onValueChange={(v) =>
-                        setEditingTile({
-                          ...editingTile,
-                          dealerId: v,
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select dealer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {dealers.map((dealer) => (
-                          <SelectItem key={dealer.id} value={dealer.id}>
-                            {dealer.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Description</Label>
-                  <Textarea
-                    value={editingTile.description || ""}
-                    onChange={(e) =>
-                      setEditingTile({
-                        ...editingTile,
-                        description: e.target.value,
-                      })
-                    }
-                  />
-                </div>
+              <div className="space-y-6 mt-4">
+                {/* Basic Info */}
+                <section className="space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                    Basic Information
+                  </h3>
 
-                <div className="flex justify-end gap-3 pt-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setEditingTile(null)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={handleUpdateTile} disabled={loading}>
-                    Save Changes
-                  </Button>
-                </div>
+                  <div className="space-y-2">
+                    <Label>Name</Label>
+                    <Input
+                      value={editingTile.name}
+                      onChange={(e) =>
+                        setEditingTile({ ...editingTile, name: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>SKU</Label>
+                    <Input
+                      value={editingTile.sku}
+                      onChange={(e) =>
+                        setEditingTile({ ...editingTile, sku: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Textarea
+                      value={editingTile.description || ""}
+                      onChange={(e) =>
+                        setEditingTile({
+                          ...editingTile,
+                          description: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </section>
+
+                {/* Classification */}
+                <section className="space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                    Classification
+                  </h3>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Category</Label>
+                      <Select
+                        value={editingTile.category}
+                        onValueChange={(v) =>
+                          setEditingTile({ ...editingTile, category: v })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="FLOOR">Floor</SelectItem>
+                          <SelectItem value="WALL">Wall</SelectItem>
+                          <SelectItem value="BATHROOM">Bathroom</SelectItem>
+                          <SelectItem value="KITCHEN">Kitchen</SelectItem>
+                          <SelectItem value="OUTDOOR">Outdoor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Finish</Label>
+                      <Select
+                        value={editingTile.finish}
+                        onValueChange={(v) =>
+                          setEditingTile({ ...editingTile, finish: v })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="GLOSSY">Glossy</SelectItem>
+                          <SelectItem value="MATTE">Matte</SelectItem>
+                          <SelectItem value="SATIN">Satin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Size</Label>
+                      <Select
+                        value={editingTile.size}
+                        onValueChange={(v) =>
+                          setEditingTile({ ...editingTile, size: v })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="600x600">600x600</SelectItem>
+                          <SelectItem value="600x1200">600x1200</SelectItem>
+                          <SelectItem value="800x800">800x800</SelectItem>
+                          <SelectItem value="800x1600">800x1600</SelectItem>
+                          <SelectItem value="1000x1000">1000x1000</SelectItem>
+                          <SelectItem value="300x600">300x600</SelectItem>
+                          <SelectItem value="400x400">400x400</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Material</Label>
+                      <Select
+                        value={editingTile.material}
+                        onValueChange={(v) =>
+                          setEditingTile({ ...editingTile, material: v })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Porcelain">Porcelain</SelectItem>
+                          <SelectItem value="Ceramic">Ceramic</SelectItem>
+                          <SelectItem value="Vitrified">Vitrified</SelectItem>
+                          <SelectItem value="Marble">Marble</SelectItem>
+                          <SelectItem value="Granite">Granite</SelectItem>
+                          <SelectItem value="Natural Stone">
+                            Natural Stone
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Pricing */}
+                <section className="space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                    Pricing
+                  </h3>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Price per Sqft (₹)</Label>
+                      <Input
+                        type="number"
+                        value={editingTile.pricePerSqft}
+                        onChange={(e) =>
+                          setEditingTile({
+                            ...editingTile,
+                            pricePerSqft: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Price per Box (₹)</Label>
+                      <Input
+                        type="number"
+                        value={editingTile.pricePerBox}
+                        onChange={(e) =>
+                          setEditingTile({
+                            ...editingTile,
+                            pricePerBox: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                {/* Inventory & Dealer */}
+                <section className="space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                    Inventory & Dealer
+                  </h3>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Stock (boxes)</Label>
+                      <Input
+                        type="number"
+                        value={editingTile.stock}
+                        onChange={(e) =>
+                          setEditingTile({
+                            ...editingTile,
+                            stock: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Dealer</Label>
+                      <Select
+                        value={editingTile.dealerId || editingTile.dealer?.id}
+                        onValueChange={(v) =>
+                          setEditingTile({
+                            ...editingTile,
+                            dealerId: v,
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select dealer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {dealers.map((dealer) => (
+                            <SelectItem key={dealer.id} value={dealer.id}>
+                              {dealer.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </section>
               </div>
+
+              <DialogFooter className="mt-6">
+                <Button variant="outline" onClick={() => setEditingTile(null)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleUpdateTile} disabled={loading}>
+                  {loading ? "Saving..." : "Save Changes"}
+                </Button>
+              </DialogFooter>
             </>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* DELETE CONFIRMATION DIALOG */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              tile from the inventory.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setTileToDelete(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTile}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

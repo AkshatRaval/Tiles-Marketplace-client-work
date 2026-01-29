@@ -3,9 +3,11 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    // Get count of tiles grouped by category
     const categories = await prisma.tile.groupBy({
       by: ["category"],
+      where: {
+        isPublished: true,
+      },
       _count: {
         category: true,
       },
