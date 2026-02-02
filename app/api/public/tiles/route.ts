@@ -1,79 +1,74 @@
+// app/api/public/tiles/route.ts
+
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-
-const normalizeEnum = (value: string) =>
-  value.toUpperCase().replace(/\s+/g, "_");
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const skip = (page - 1) * limit;
-
-    const search = searchParams.get("search");
+    
+    const category = searchParams.get("category");
     const material = searchParams.get("material");
     const finish = searchParams.get("finish");
-    const category = searchParams.get("category");
-    const size = searchParams.get("size");
+    const minPrice = searchParams.get("minPrice");
+    const maxPrice = searchParams.get("maxPrice");
+    const search = searchParams.get("search");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "20");
 
+    const skip = (page - 1) * limit;
+
+    // Build where clause
     const where: any = {
-      isPublished: true, // Only show published tiles
+      isPublished: true,
     };
 
-    // Apply filters
-    if (material) {
-      where.material = { equals: material, mode: "insensitive" };
-    }
-    if (finish) {
-      where.finish = { equals: normalizeEnum(finish), mode: "insensitive" };
-    }
-    if (category) {
-      where.category = { equals: normalizeEnum(category), mode: "insensitive" };
-    }
-    if (size) {
-      where.size = { contains: size, mode: "insensitive" };
+    if (category) where.category = category;
+    if (material) where.material = material;
+    if (finish) where.finish = finish;
+    
+    if (minPrice || maxPrice) {
+      where.pricePerSqft = {};
+      if (minPrice) where.pricePerSqft.gte = parseFloat(minPrice);
+      if (maxPrice) where.pricePerSqft.lte = parseFloat(maxPrice);
     }
 
-    // Search functionality
     if (search) {
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
-        { sku: { contains: search, mode: "insensitive" } },
         { description: { contains: search, mode: "insensitive" } },
+        { material: { contains: search, mode: "insensitive" } },
       ];
     }
 
-    // Fetch tiles and count in parallel
-    const [tiles, totalCount] = await Promise.all([
+    const [tiles, total] = await Promise.all([
       prisma.tile.findMany({
         where,
-        take: limit,
-        skip,
         include: {
-          dealer: { 
-            select: { 
-              name: true, 
-              shopName: true,
-              city: true,
-            } 
-          },
-          images: { take: 3 },
+          images: true,
+          // DO NOT include dealer info for end users
+          dealer: false,
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: {
+          createdAt: "desc",
+        },
+        skip,
+        take: limit,
       }),
       prisma.tile.count({ where }),
     ]);
 
     return NextResponse.json({
       tiles,
-      totalCount,
-      page,
-      totalPages: Math.ceil(totalCount / limit),
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error: any) {
-    console.error("FETCH_PUBLIC_TILES_ERROR:", error);
+    console.error("PUBLIC_TILES_ERROR:", error);
     return NextResponse.json(
       { error: "Failed to fetch tiles", details: error.message },
       { status: 500 }

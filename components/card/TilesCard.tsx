@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Heart, Ruler, Box, ChevronRight } from "lucide-react";
+import { MapPin, Heart, Ruler, Box, ChevronRight, Loader2, ShoppingCart, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Tile } from "@/types";
@@ -9,6 +9,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useRef, useState } from "react";
 import Image from "next/image";
+import { useAuth } from "@/components/auth-provider";
+import { useWishlist } from "@/components/wishlist-provider";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+import { api } from "@/lib/api";
 
 interface TileCardProps {
   tile: Tile;
@@ -19,6 +24,14 @@ export function TileCard({ tile, className }: TileCardProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const [currentImg, setCurrentImg] = useState(0);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [cartLoading, setCartLoading] = useState(false);
+  
+  const { user } = useAuth();
+  const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
+  const router = useRouter();
+
+  const inWishlist = isInWishlist(tile.id);
 
   const getStockInfo = (count: number) => {
     if (count <= 0)
@@ -33,11 +46,10 @@ export function TileCard({ tile, className }: TileCardProps) {
       };
     return {
       label: "In Stock",
-      color: "bg-emerald-200 text-emerald-900 border-emerald-700/50",
+      color: "bg-emerald-100 text-emerald-900 border-emerald-300",
     };
   };
 
-  // @ts-ignore
   const stockStatus = getStockInfo(tile.stock);
 
   const handleScroll = () => {
@@ -46,6 +58,79 @@ export function TileCard({ tile, className }: TileCardProps) {
       scrollRef.current.scrollLeft / scrollRef.current.offsetWidth
     );
     setCurrentImg(index);
+  };
+
+  const handleWishlistToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!user) {
+      toast.error("Please login to add to wishlist");
+      router.push("/login?redirect=/tiles");
+      return;
+    }
+
+    setWishlistLoading(true);
+
+    try {
+      if (inWishlist) {
+        await removeFromWishlist(tile.id);
+        toast.success("Removed from wishlist");
+      } else {
+        await addToWishlist(tile.id);
+        toast.success("Added to wishlist!");
+      }
+    } catch (error: any) {
+      console.error("Wishlist error:", error);
+      
+      if (error.response?.status === 401) {
+        toast.error("Please login to add to wishlist");
+        router.push("/login?redirect=/tiles");
+      } else if (error.response?.data?.error?.includes("already in wishlist")) {
+        toast.error("Already in wishlist");
+      } else {
+        toast.error("Something went wrong");
+      }
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
+
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!user) {
+      toast.error("Please login to add to cart");
+      router.push("/login?redirect=/tiles");
+      return;
+    }
+
+    if (tile.stock === 0) {
+      toast.error("Out of stock");
+      return;
+    }
+
+    setCartLoading(true);
+
+    try {
+      await api.post("/cart", {
+        tileId: tile.id,
+        quantityBox: 1,
+      });
+      toast.success("Added to cart!");
+    } catch (error: any) {
+      console.error("Cart error:", error);
+      
+      if (error.response?.status === 401) {
+        toast.error("Please login to add to cart");
+        router.push("/login?redirect=/tiles");
+      } else {
+        toast.error("Failed to add to cart");
+      }
+    } finally {
+      setCartLoading(false);
+    }
   };
 
   const cloudinaryLoader = ({
@@ -83,7 +168,6 @@ export function TileCard({ tile, className }: TileCardProps) {
               WebkitOverflowScrolling: "touch",
             }}
           >
-            {/* WebKit scrollbar hide */}
             <style jsx>{`
               div::-webkit-scrollbar {
                 display: none;
@@ -119,7 +203,6 @@ export function TileCard({ tile, className }: TileCardProps) {
             ))}
           </div>
 
-          {/* Dots */}
           {tile.images.length > 1 && (
             <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5 pointer-events-none">
               {tile.images.map((_, idx) => (
@@ -141,20 +224,52 @@ export function TileCard({ tile, className }: TileCardProps) {
             </Badge>
           </div>
 
-          {/* Heart */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-3 right-3 z-10 rounded-full bg-white/20 backdrop-blur-md text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-white hover:text-red-500"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-          >
-            <Heart className="h-5 w-5" />
-          </Button>
+          {/* Action Buttons */}
+          <div className="absolute top-3 right-3 z-10 flex gap-2">
+            {/* Wishlist Heart Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "rounded-full backdrop-blur-md transition-all",
+                inWishlist
+                  ? "bg-white text-red-500 opacity-100"
+                  : "bg-white/20 text-white opacity-0 group-hover:opacity-100 hover:bg-white hover:text-red-500"
+              )}
+              onClick={handleWishlistToggle}
+              disabled={wishlistLoading}
+            >
+              {wishlistLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Heart
+                  className={cn(
+                    "h-5 w-5 transition-all",
+                    inWishlist && "fill-current"
+                  )}
+                />
+              )}
+            </Button>
 
-          {/* Stock */}
+            {/* Add to Cart Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "rounded-full backdrop-blur-md transition-all bg-white/20 text-white opacity-0 group-hover:opacity-100 hover:bg-white hover:text-primary"
+              )}
+              onClick={handleAddToCart}
+              disabled={cartLoading || tile.stock === 0}
+            >
+              {cartLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <ShoppingCart className="h-5 w-5" />
+              )}
+            </Button>
+          </div>
+
+          {/* Stock Badge */}
           <Badge
             variant="outline"
             className={cn(
@@ -170,15 +285,15 @@ export function TileCard({ tile, className }: TileCardProps) {
         <Link href={`/tiles/${tile.id}`}>
           <CardContent className="px-1 py-4 cursor-pointer">
             <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <h3 className="text-lg font-bold leading-none tracking-tight transition-colors group-hover:text-primary">
+              <div className="space-y-1 flex-1">
+                <h3 className="text-lg font-bold leading-none tracking-tight transition-colors group-hover:text-primary line-clamp-2">
                   {tile.name}
                 </h3>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
-                  {tile.finish} • {tile.category}
+                  {tile.finish} • {tile.category.replace(/_/g, " ")}
                 </p>
               </div>
-              <div className="text-right">
+              <div className="text-right shrink-0">
                 <p className="text-xl font-black text-primary">
                   ₹{tile.pricePerSqft}
                 </p>
@@ -187,6 +302,13 @@ export function TileCard({ tile, className }: TileCardProps) {
                 </p>
               </div>
             </div>
+
+            {/* Description Preview */}
+            {tile.description && tile.description !== "NOTDEFINED" && (
+              <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                {tile.description}
+              </p>
+            )}
 
             <div className="mt-4 flex items-center gap-4 border-t pt-4">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
@@ -200,13 +322,21 @@ export function TileCard({ tile, className }: TileCardProps) {
             </div>
 
             <div className="mt-3 flex items-center justify-between">
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <MapPin className="h-3 w-3" />
-                <span className="text-[11px] font-bold uppercase">
-                  Dealer Location
-                </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    router.push(`/tiles/${tile.id}`);
+                  }}
+                >
+                  <Eye className="h-3 w-3 mr-1" />
+                  View Details
+                </Button>
               </div>
-              <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1 text-muted-foreground" />
             </div>
           </CardContent>
         </Link>

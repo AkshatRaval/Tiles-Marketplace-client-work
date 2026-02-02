@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import Image from "next/image";
 import {
@@ -11,6 +10,11 @@ import {
   Home,
   Briefcase,
   MapPin,
+  Phone,
+  Hammer,
+  User,
+  Mail,
+  Building2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -19,12 +23,9 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { prisma } from "@/lib/prisma";
-import { User } from "@/types";
 import { useAuth } from "@/components/auth-provider";
 import { api } from "@/lib/api";
 
@@ -32,41 +33,40 @@ const Onboarding = () => {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+  const { user } = useAuth();
 
-  // Form State
   const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    pincode: "",
     duty: "",
     lookingFor: [] as string[],
-    city: "",
-    phone: "",
     referral: "",
   });
 
-  const totalSteps = 3;
+  const totalSteps = 4;
 
   const nextStep = () => setStep((s) => Math.min(s + 1, totalSteps));
   const prevStep = () => setStep((s) => Math.max(s - 1, 1));
-  const { user } = useAuth();
+
   const handleComplete = async () => {
     setIsSubmitting(true);
     try {
-      const body: User = {
-        id: user?.id,
-        name: "",
-        email: user?.email,
-        role: "customer",
-        duty: formData.duty,
-        lookingFor: formData.lookingFor,
-        city: formData.city,
-        phone: formData.phone,
-        referral: formData.referral,
-      };
-      const res = await api.post("/users/create", body)
-      console.log(res)
-      toast.success("Profile updated successfully!");
+      // Send userId AND email in the request body
+      await api.post("/users/profile", {
+        userId: user?.id, // Include userId here
+        email: user?.email, // Include email for user creation
+        ...formData,
+        isOnboarded: true,
+      });
+      toast.success("Profile completed successfully!");
       router.push("/");
-    } catch (error) {
-      toast.error("Something went wrong");
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.response?.data?.error || "Something went wrong");
     } finally {
       setIsSubmitting(false);
     }
@@ -81,10 +81,81 @@ const Onboarding = () => {
     }));
   };
 
+  const roles = [
+    {
+      id: "homeowner",
+      label: "Homeowner / Buyer",
+      icon: Home,
+      description: "Looking for tiles for my home",
+    },
+    {
+      id: "designer",
+      label: "Architect / Designer",
+      icon: Briefcase,
+      description: "Sourcing tiles for client projects",
+    },
+    {
+      id: "contractor",
+      label: "Contractor / Builder",
+      icon: Hammer,
+      description: "Buying tiles for construction projects",
+    },
+  ];
+
+  const tileInterests = [
+    "Marble",
+    "Ceramic",
+    "Porcelain",
+    "Vitrified",
+    "Wood Finish",
+    "Stone Effect",
+    "Outdoor Tiles",
+    "Mosaic",
+    "Kitchen Tiles",
+    "Bathroom Tiles",
+    "Living Room",
+    "Wall Tiles",
+    "Floor Tiles",
+    "Designer Collection",
+    "Budget Friendly",
+    "Premium Range",
+  ];
+
+  const indianStates = [
+    "Andhra Pradesh",
+    "Arunachal Pradesh",
+    "Assam",
+    "Bihar",
+    "Chhattisgarh",
+    "Goa",
+    "Gujarat",
+    "Haryana",
+    "Himachal Pradesh",
+    "Jharkhand",
+    "Karnataka",
+    "Kerala",
+    "Madhya Pradesh",
+    "Maharashtra",
+    "Manipur",
+    "Meghalaya",
+    "Mizoram",
+    "Nagaland",
+    "Odisha",
+    "Punjab",
+    "Rajasthan",
+    "Sikkim",
+    "Tamil Nadu",
+    "Telangana",
+    "Tripura",
+    "Uttar Pradesh",
+    "Uttarakhand",
+    "West Bengal",
+  ];
+
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background p-4 sm:p-8">
-      <div className="w-full max-w-6xl h-full md:h-[90vh] bg-background rounded-[40px] overflow-hidden flex flex-col md:flex-row border shadow-2xl">
-        {/* Left Side - Progress & Branding */}
+    <div className="flex items-center justify-center min-h-screen bg-background p-4">
+      <div className="w-full max-w-6xl h-full md:h-[90vh] bg-background rounded-3xl overflow-hidden flex flex-col md:flex-row border shadow-2xl">
+        {/* Left Side - Image & Progress */}
         <div className="relative hidden md:flex w-1/2 flex-col justify-between p-12 text-white">
           <div className="absolute inset-0 z-0">
             <Image
@@ -94,190 +165,190 @@ const Onboarding = () => {
               className="object-cover"
               priority
             />
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+            <div className="absolute inset-0 bg-gradient-to-br from-black/60 to-black/80 backdrop-blur-sm" />
           </div>
 
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-8">
-              <Sparkles className="text-primary" />
+              <Sparkles className="text-primary w-6 h-6" />
               <span className="font-bold text-xl tracking-tight uppercase">
-                Tiles Market
+                TileHub
               </span>
             </div>
 
             <div className="space-y-6">
               <h1 className="font-serif text-5xl leading-tight">
-                Tell us a bit <br /> about yourself
+                Welcome to <br />
+                Your Tile Journey
               </h1>
-              <p className="text-white/70 text-lg font-light">
-                Help us customize your experience to find the perfect tiles for
-                your needs.
+              <p className="text-white/80 text-lg font-light leading-relaxed">
+                Let's get to know you better. Complete your profile to unlock
+                personalized recommendations and connect with trusted dealers.
               </p>
             </div>
           </div>
 
-          {/* Stepper Indicator */}
-          <div className="relative z-10 flex gap-4">
-            {[1, 2, 3].map((num) => (
-              <div key={num} className="flex items-center gap-2">
+          {/* Progress Indicators */}
+          <div className="relative z-10 space-y-3">
+            <div className="flex gap-2">
+              {[1, 2, 3, 4].map((num) => (
                 <div
-                  className={`h-2 w-12 rounded-full transition-all duration-500 ${
+                  key={num}
+                  className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${
                     step >= num ? "bg-primary" : "bg-white/20"
                   }`}
                 />
-              </div>
-            ))}
+              ))}
+            </div>
+            <p className="text-sm text-white/60">
+              Step {step} of {totalSteps}
+            </p>
           </div>
         </div>
 
-        {/* Right Side - Form Content */}
-        <div className="w-full md:w-1/2 bg-card p-8 md:p-16 flex flex-col">
+        {/* Right Side - Form */}
+        <div className="w-full md:w-1/2 bg-card p-8 md:p-16 flex flex-col overflow-y-auto">
           <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
-            {/* Step 1: Role Selection */}
+            {/* Step 1: Personal Information */}
             {step === 1 && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                 <div className="space-y-2">
-                  <h2 className="text-3xl font-serif">I am a...</h2>
+                  <h2 className="text-3xl font-bold">Let's start with basics</h2>
                   <p className="text-muted-foreground">
-                    Select the option that best describes you.
+                    Tell us your name and contact details
                   </p>
                 </div>
-                <div className="grid gap-4">
-                  {[
-                    { id: "homeowner", label: "Homeowner / Buyer", icon: Home },
-                    {
-                      id: "designer",
-                      label: "Architect / Designer",
-                      icon: Briefcase,
-                    },
-                  ].map((role) => (
-                    <button
-                      key={role.id}
-                      onClick={() =>
-                        setFormData({ ...formData, duty: role.id })
-                      }
-                      className={`flex items-center gap-4 p-6 rounded-2xl border-2 transition-all ${
-                        formData.duty === role.id
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
-                      }`}
-                    >
-                      <role.icon
-                        className={
-                          formData.duty === role.id
-                            ? "text-primary"
-                            : "text-muted-foreground"
-                        }
-                      />
-                      <span className="font-semibold">{role.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
-            {/* Step 2: lookingFor */}
-            {step === 2 && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-                <div className="space-y-2">
-                  <h2 className="text-3xl font-serif">
-                    What are you looking for?
-                  </h2>
-                  <p className="text-muted-foreground">
-                    Select all that apply to your project.
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    "Marble",
-                    "Ceramic",
-                    "Wood Finish",
-                    "Outdoor",
-                    "Mosaic",
-                    "Kitchen",
-                    "Bathroom",
-                    "Wall Tiles",
-                  ].map((item) => (
-                    <button
-                      key={item}
-                      onClick={() => toggleInterest(item)}
-                      className={`p-3 rounded-xl border text-sm transition-all ${
-                        formData.lookingFor.includes(item)
-                          ? "bg-primary text-white border-primary"
-                          : "bg-muted/50 hover:border-primary/50"
-                      }`}
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Location, Contact & Discovery */}
-            {step === 3 && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-                <div className="space-y-2">
-                  <h2 className="text-3xl font-serif">Almost there!</h2>
-                  <p className="text-muted-foreground">
-                    We need these details for logistics and updates.
-                  </p>
-                </div>
                 <div className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">
-                      Location (City)
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <User size={16} className="text-primary" />
+                      Full Name
                     </label>
-                    <div className="relative">
-                      <MapPin
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                        size={18}
-                      />
-                      <input
-                        type="text"
-                        placeholder="e.g. Raipur"
-                        className="w-full pl-10 pr-4 py-3 bg-muted/50 border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20"
-                        value={formData.city}
-                        onChange={(e) =>
-                          setFormData({ ...formData, city: e.target.value })
-                        }
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      placeholder="e.g. Rajesh Kumar"
+                      className="w-full px-4 py-3 h-12 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                    />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">Phone Number</label>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <Mail size={16} className="text-primary" />
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      placeholder={user?.email || "your@email.com"}
+                      disabled
+                      className="w-full px-4 py-3 h-12 bg-muted border border-border rounded-xl outline-none opacity-60 cursor-not-allowed"
+                      value={user?.email || ""}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Email cannot be changed
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <Phone size={16} className="text-primary" />
+                      Phone Number
+                    </label>
                     <input
                       type="tel"
-                      placeholder="+91 00000-00000"
-                      className="w-full px-4 py-3 bg-muted/50 border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20"
+                      placeholder="+91 98765 43210"
+                      className="w-full px-4 py-3 h-12 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                       value={formData.phone}
                       onChange={(e) =>
                         setFormData({ ...formData, phone: e.target.value })
                       }
                     />
                   </div>
+                </div>
+              </div>
+            )}
 
-                  {/* Referral Section */}
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">
-                      How did you hear about us? (Optional)
+            {/* Step 2: Address */}
+            {step === 2 && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-bold">Where are you located?</h2>
+                  <p className="text-muted-foreground">
+                    Help us connect you with nearby dealers
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <Building2 size={16} className="text-primary" />
+                      Address
                     </label>
-                    <Select>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select an Option" />
+                    <textarea
+                      placeholder="House/Flat No., Street, Landmark"
+                      className="w-full px-4 py-3 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+                      rows={3}
+                      value={formData.address}
+                      onChange={(e) =>
+                        setFormData({ ...formData, address: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">City</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Mumbai"
+                        className="w-full px-4 py-3 h-12 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                        value={formData.city}
+                        onChange={(e) =>
+                          setFormData({ ...formData, city: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">PIN Code</label>
+                      <input
+                        type="text"
+                        placeholder="400001"
+                        maxLength={6}
+                        className="w-full px-4 py-3 h-12 bg-background border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                        value={formData.pincode}
+                        onChange={(e) =>
+                          setFormData({ ...formData, pincode: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <MapPin size={16} className="text-primary" />
+                      State
+                    </label>
+                    <Select
+                      value={formData.state}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, state: value })
+                      }
+                    >
+                      <SelectTrigger className="w-full h-12">
+                        <SelectValue placeholder="Select your state" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          <SelectItem defaultChecked value="not_selected">
-                            Select an option
-                          </SelectItem>
-                          <SelectItem value="google">Google Search</SelectItem>
-                          <SelectItem value="social">Social Media</SelectItem>
-                          <SelectItem value="friend">
-                            Friend / Referral
-                          </SelectItem>
-                          <SelectItem value="ads">Advertisement</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
+                          {indianStates.map((state) => (
+                            <SelectItem key={state} value={state}>
+                              {state}
+                            </SelectItem>
+                          ))}
                         </SelectGroup>
                       </SelectContent>
                     </Select>
@@ -286,12 +357,147 @@ const Onboarding = () => {
               </div>
             )}
 
+            {/* Step 3: Role & Interests */}
+            {step === 3 && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-bold">Tell us about yourself</h2>
+                  <p className="text-muted-foreground">
+                    Who are you and what interests you?
+                  </p>
+                </div>
+
+                {/* Role Selection */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium">I am a...</label>
+                  <div className="grid gap-3">
+                    {roles.map((role) => (
+                      <button
+                        key={role.id}
+                        onClick={() =>
+                          setFormData({ ...formData, duty: role.id })
+                        }
+                        className={`flex items-start gap-4 p-4 rounded-xl border-2 transition-all text-left ${
+                          formData.duty === role.id
+                            ? "border-primary bg-primary/5 shadow-sm"
+                            : "border-border hover:border-primary/50 hover:bg-accent/50"
+                        }`}
+                      >
+                        <div
+                          className={`p-2.5 rounded-lg ${
+                            formData.duty === role.id
+                              ? "bg-primary/10"
+                              : "bg-muted"
+                          }`}
+                        >
+                          <role.icon
+                            className={
+                              formData.duty === role.id
+                                ? "text-primary"
+                                : "text-muted-foreground"
+                            }
+                            size={20}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-sm mb-0.5">
+                            {role.label}
+                          </h3>
+                          <p className="text-xs text-muted-foreground">
+                            {role.description}
+                          </p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Interests */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium">
+                    I'm interested in... (select multiple)
+                  </label>
+                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2">
+                    {tileInterests.map((item) => (
+                      <button
+                        key={item}
+                        onClick={() => toggleInterest(item)}
+                        className={`p-3 rounded-lg border text-xs font-medium transition-all ${
+                          formData.lookingFor.includes(item)
+                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                            : "bg-card hover:bg-accent border-border hover:border-primary/50"
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {formData.lookingFor.length} selected
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Referral */}
+            {step === 4 && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-bold">One last thing!</h2>
+                  <p className="text-muted-foreground">
+                    How did you hear about TileHub?
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <Select
+                    value={formData.referral}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, referral: value })
+                    }
+                  >
+                    <SelectTrigger className="w-full h-12">
+                      <SelectValue placeholder="Select an option" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="google">Google Search</SelectItem>
+                        <SelectItem value="instagram">Instagram</SelectItem>
+                        <SelectItem value="facebook">Facebook</SelectItem>
+                        <SelectItem value="friend">Friend / Referral</SelectItem>
+                        <SelectItem value="dealer">Dealer Recommendation</SelectItem>
+                        <SelectItem value="ads">Advertisement</SelectItem>
+                        <SelectItem value="website">Other Website</SelectItem>
+                        <SelectItem value="youtube">YouTube</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+
+                  <div className="p-5 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl border border-primary/20">
+                    <div className="flex items-start gap-3">
+                      <Sparkles className="w-5 h-5 text-primary mt-0.5" />
+                      <div>
+                        <h3 className="font-semibold text-sm mb-1">
+                          You're all set! 🎉
+                        </h3>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Get ready to discover premium tiles, compare prices,
+                          and connect with trusted dealers across India.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Navigation Buttons */}
-            <div className="flex items-center gap-4 mt-10">
+            <div className="flex items-center gap-3 mt-10">
               {step > 1 && (
                 <button
                   onClick={prevStep}
-                  className="flex items-center justify-center p-3.5 rounded-xl border border-border hover:bg-muted transition-colors"
+                  className="flex items-center justify-center p-3.5 rounded-xl border border-border hover:bg-accent transition-colors"
                 >
                   <ArrowLeft size={20} />
                 </button>
@@ -300,26 +506,44 @@ const Onboarding = () => {
               {step < totalSteps ? (
                 <button
                   onClick={nextStep}
-                  disabled={step === 1 && !formData.duty}
-                  className="flex-1 bg-primary text-primary-foreground py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 shadow-lg shadow-primary/20"
+                  disabled={
+                    (step === 1 && (!formData.name || !formData.phone)) ||
+                    (step === 2 && (!formData.city || !formData.state)) ||
+                    (step === 3 && (!formData.duty || formData.lookingFor.length === 0))
+                  }
+                  className="flex-1 bg-primary text-primary-foreground h-12 rounded-xl font-semibold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20 transition-all"
                 >
                   Continue <ArrowRight size={18} />
                 </button>
               ) : (
                 <button
                   onClick={handleComplete}
-                  disabled={isSubmitting || !formData.city}
-                  className="flex-1 bg-primary text-primary-foreground py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 shadow-lg shadow-primary/20"
+                  disabled={isSubmitting}
+                  className="flex-1 bg-primary text-primary-foreground h-12 rounded-xl font-semibold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 shadow-lg shadow-primary/20 transition-all"
                 >
                   {isSubmitting ? (
-                    <Loader2 className="animate-spin" size={18} />
+                    <>
+                      <Loader2 className="animate-spin" size={18} />
+                      Completing...
+                    </>
                   ) : (
-                    "Complete Setup"
+                    <>
+                      Complete Setup <Check size={18} />
+                    </>
                   )}
-                  {!isSubmitting && <Check size={18} />}
                 </button>
               )}
             </div>
+
+            {/* Skip Option */}
+            {step === 4 && !isSubmitting && (
+              <button
+                onClick={handleComplete}
+                className="w-full text-center text-sm text-muted-foreground hover:text-foreground mt-4 transition-colors"
+              >
+                Skip this step
+              </button>
+            )}
           </div>
         </div>
       </div>

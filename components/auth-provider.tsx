@@ -1,35 +1,62 @@
+// components/auth-provider.tsx
+
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { User } from "@supabase/supabase-js";
 
-type AuthContextType = {
+interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   signOut: () => Promise<void>;
-};
+}
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  isLoading: true,
+  signOut: async () => {},
+});
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const supabase = createClient();
 
   useEffect(() => {
-    // 1. Check active sessions on load
-    const mount = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      
+      // Only store if user exists
+      if (currentUser) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("userId", currentUser.id);
+          localStorage.setItem("authToken", session?.access_token ?? "");
+        }
+      }
+      
       setIsLoading(false);
-    };
+    });
 
-    mount();
-
-    // 2. Listen for auth events (login, logout, password recovery)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      
+      if (typeof window !== "undefined") {
+        if (currentUser) {
+          localStorage.setItem("userId", currentUser.id);
+          localStorage.setItem("authToken", session?.access_token ?? "");
+        } else {
+          localStorage.removeItem("userId");
+          localStorage.removeItem("authToken");
+        }
+      }
+      
       setIsLoading(false);
     });
 
@@ -38,6 +65,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("userId");
+      localStorage.removeItem("authToken");
+    }
+    setUser(null);
   };
 
   return (
@@ -45,11 +77,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-// Custom hook for easy access
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within AuthProvider");
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
   return context;
-};
+}

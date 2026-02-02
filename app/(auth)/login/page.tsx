@@ -19,7 +19,6 @@ export default function LoginPage() {
   const router = useRouter();
   const hasToasted = useRef(false);
 
-  // ✅ Redirect logic: If user is already logged in, send them home
   useEffect(() => {
     if (!isLoading && user && !hasToasted.current) {
       hasToasted.current = true;
@@ -54,7 +53,6 @@ export default function LoginPage() {
     }
   };
 
-  // Prevent "flicker" of the login form if user is already auth'd
   if (isLoading || (user && !hasToasted.current)) {
     return (
       <div className="min-h-screen flex items-center justify-center">

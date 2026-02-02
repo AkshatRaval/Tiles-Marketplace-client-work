@@ -5,17 +5,9 @@ import Link from "next/link";
 import {
   ChevronLeft,
   Layers,
-  Maximize,
-  Sparkles,
   FileDown,
   CheckCircle2,
-  Info,
   PhoneCall,
-  Share2,
-  Shield,
-  Truck,
-  RefreshCw,
-  Award,
   ZoomIn,
   X,
   Star,
@@ -26,6 +18,7 @@ import {
   Eye,
   EyeOff,
   Heart,
+  Share2,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -55,6 +48,7 @@ export default function ProductPage() {
   useEffect(() => {
     checkAuth();
   }, []);
+
   useEffect(() => {
     if (id) loadData();
   }, [id]);
@@ -65,25 +59,37 @@ export default function ProductPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/admin/tiles/${id}`);
+      
+      // Changed from /admin/tiles to /public/tiles
+      const response = await api.get(`/public/tiles/${id}`);
       setTile(response.data);
 
+      // Load reviews
       try {
         const r = await api.get(`/reviews/tile/${id}`);
         setReviews(r.data || []);
-      } catch {}
+      } catch (err) {
+        console.error("Failed to load reviews:", err);
+      }
 
+      // Load related tiles
       try {
-        const all = await api.get("/admin/tiles");
-        let rel = all.data.filter(
+        const all = await api.get("/public/tiles");
+        let rel = all.data.tiles?.filter(
           (t: any) => t.category === response.data.category && t.id !== id,
-        );
-        if (rel.length < 4) rel = all.data.filter((t: any) => t.id !== id);
+        ) || [];
+        
+        if (rel.length < 4) {
+          rel = all.data.tiles?.filter((t: any) => t.id !== id) || [];
+        }
         setRelatedTiles(rel.slice(0, 4));
-      } catch {}
+      } catch (err) {
+        console.error("Failed to load related tiles:", err);
+      }
 
       setLoading(false);
-    } catch {
+    } catch (err) {
+      console.error("Failed to load tile:", err);
       setError(true);
       setLoading(false);
     }
@@ -129,8 +135,8 @@ export default function ProductPage() {
     <>
       <div className="bg-background min-h-screen">
         {/* Header */}
-        <div className="sticky top-0 z-40 backdrop-blur-lg bg-background/80">
-          <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="border-b bg-card sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto px-6 py-4">
             <Link
               href="/tiles"
               className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -141,12 +147,12 @@ export default function ProductPage() {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 py-8 md:py-16">
+        <div className="max-w-7xl mx-auto px-6 py-12">
           {/* Main Product Section */}
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 mb-24">
+          <div className="grid lg:grid-cols-2 gap-12 mb-20">
             {/* Image Gallery */}
             <div className="space-y-4">
-              <div className="relative aspect-square bg-muted rounded-2xl overflow-hidden group">
+              <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
                 {currentImage ? (
                   <>
                     <img
@@ -157,14 +163,14 @@ export default function ProductPage() {
                     <div className="absolute top-4 right-4 flex gap-2">
                       <button
                         onClick={() => setZoomModal(true)}
-                        className="w-10 h-10 bg-background rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                        className="w-10 h-10 bg-background rounded-full flex items-center justify-center shadow-sm hover:shadow-md transition-shadow"
                       >
                         <ZoomIn className="w-5 h-5" />
                       </button>
-                      <button className="w-10 h-10 bg-background rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                      <button className="w-10 h-10 bg-background rounded-full flex items-center justify-center shadow-sm hover:shadow-md transition-shadow">
                         <Heart className="w-5 h-5" />
                       </button>
-                      <button className="w-10 h-10 bg-background rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                      <button className="w-10 h-10 bg-background rounded-full flex items-center justify-center shadow-sm hover:shadow-md transition-shadow">
                         <Share2 className="w-5 h-5" />
                       </button>
                     </div>
@@ -202,11 +208,11 @@ export default function ProductPage() {
 
             {/* Product Info */}
             <div className="lg:sticky lg:top-24 h-fit">
-              <div className="inline-block px-3 py-1 bg-muted rounded-full text-xs font-semibold uppercase tracking-wider mb-4">
-                {tile.category}
+              <div className="inline-block px-3 py-1 bg-muted rounded-md text-xs font-medium uppercase tracking-wide mb-4">
+                {tile.category?.replace(/_/g, " ")}
               </div>
 
-              <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
+              <h1 className="text-4xl font-bold mb-4">
                 {tile.name}
               </h1>
 
@@ -219,8 +225,8 @@ export default function ProductPage() {
                         key={i}
                         className={`w-4 h-4 ${
                           i < Math.round(Number(avgRating))
-                            ? "fill-yellow-400 text-yellow-400"
-                            : "fill-muted text-muted"
+                            ? "fill-gray-900 text-gray-900"
+                            : "fill-gray-200 text-gray-200"
                         }`}
                       />
                     ))}
@@ -234,21 +240,19 @@ export default function ProductPage() {
 
               {/* Price */}
               <div className="flex items-baseline gap-2 mb-8">
-                <span className="text-5xl font-bold">${tile.pricePerSqft}</span>
+                <span className="text-5xl font-bold">₹{tile.pricePerSqft}</span>
                 <span className="text-xl text-muted-foreground">/sq ft</span>
               </div>
 
               {/* Stock Status */}
               <div className="mb-8">
                 {tile.stock > 0 ? (
-                  <div className="flex items-center gap-2 text-green-600">
+                  <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-5 h-5" />
-                    <span className="font-medium">
-                      In Stock - Ready to Ship
-                    </span>
+                    <span className="font-medium">In Stock</span>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 text-destructive">
+                  <div className="flex items-center gap-2 text-muted-foreground">
                     <X className="w-5 h-5" />
                     <span className="font-medium">Out of Stock</span>
                   </div>
@@ -257,13 +261,13 @@ export default function ProductPage() {
 
               {/* Description */}
               {tile.description && tile.description !== "NOTDEFINED" && (
-                <p className="text-muted-foreground text-lg leading-relaxed mb-8">
+                <p className="text-muted-foreground leading-relaxed mb-8">
                   {tile.description}
                 </p>
               )}
 
               {/* Specifications */}
-              <div className="border rounded-xl p-6 mb-8">
+              <div className="border rounded-lg p-6 mb-8 bg-card">
                 <h3 className="font-semibold mb-4">Specifications</h3>
                 <div className="space-y-3">
                   <div className="flex justify-between">
@@ -284,6 +288,17 @@ export default function ProductPage() {
                       {tile.sku}
                     </span>
                   </div>
+                  {tile.dealer && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Dealer</span>
+                      <button
+                        onClick={() => router.push(`/admin/dealers/${tile.dealer.id}`)}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {tile.dealer.shopName}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -315,17 +330,16 @@ export default function ProductPage() {
                   </Button>
                 )}
               </div>
-
             </div>
           </div>
 
           {/* Reviews Section */}
-          <div className="border-t pt-16 mb-24">
+          <div className="border-t pt-16 mb-20">
             <h2 className="text-3xl font-bold mb-8">Customer Reviews</h2>
 
             <div className="grid lg:grid-cols-3 gap-8 mb-12">
               {/* Rating Summary */}
-              <div className="text-center p-8 border rounded-2xl bg-card">
+              <div className="text-center p-8 border rounded-lg bg-card">
                 {reviews.length > 0 ? (
                   <>
                     <div className="text-6xl font-bold mb-2">{avgRating}</div>
@@ -335,20 +349,19 @@ export default function ProductPage() {
                           key={i}
                           className={`w-5 h-5 ${
                             i < Math.round(Number(avgRating))
-                              ? "fill-yellow-400 text-yellow-400"
-                              : "fill-muted text-muted"
+                              ? "fill-gray-900 text-gray-900"
+                              : "fill-gray-200 text-gray-200"
                           }`}
                         />
                       ))}
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Based on {reviews.length}{" "}
-                      {reviews.length === 1 ? "review" : "reviews"}
+                      Based on {reviews.length} reviews
                     </p>
                   </>
                 ) : (
                   <>
-                    <Star className="w-16 h-16 mx-auto mb-4 text-muted" />
+                    <Star className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
                     <p className="text-muted-foreground">No reviews yet</p>
                     <p className="text-sm text-muted-foreground mt-2">
                       Be the first to review
@@ -358,7 +371,7 @@ export default function ProductPage() {
               </div>
 
               {/* Write Review */}
-              <div className="lg:col-span-2 p-8 border rounded-2xl bg-card">
+              <div className="lg:col-span-2 p-8 border rounded-lg bg-card">
                 <h3 className="text-xl font-bold mb-6">Write a Review</h3>
 
                 <div className="mb-6">
@@ -376,8 +389,8 @@ export default function ProductPage() {
                         <Star
                           className={`w-8 h-8 ${
                             star <= reviewRating
-                              ? "fill-yellow-400 text-yellow-400"
-                              : "fill-muted text-muted"
+                              ? "fill-gray-900 text-gray-900"
+                              : "fill-gray-200 text-gray-200"
                           }`}
                         />
                       </button>
@@ -392,8 +405,8 @@ export default function ProductPage() {
                   <textarea
                     value={reviewText}
                     onChange={(e) => setReviewText(e.target.value)}
-                    placeholder="Share your experience with this product..."
-                    className="w-full p-4 border rounded-xl min-h-30 focus:ring-2 focus:ring-primary focus:border-transparent resize-none bg-background"
+                    placeholder="Share your experience..."
+                    className="w-full p-4 border rounded-lg min-h-[120px] focus:ring-2 focus:ring-primary focus:border-transparent resize-none bg-background"
                     maxLength={500}
                   />
                   <p className="text-xs text-muted-foreground mt-2">
@@ -430,7 +443,7 @@ export default function ProductPage() {
 
                 {!isAuthenticated && (
                   <p className="text-sm text-muted-foreground text-center mt-4">
-                    Please sign in to leave a review
+                    Sign in to leave a review
                   </p>
                 )}
               </div>
@@ -442,17 +455,17 @@ export default function ProductPage() {
                 {reviews.map((review: any) => (
                   <div
                     key={review.id}
-                    className="p-6 border rounded-2xl bg-card"
+                    className="p-6 border rounded-lg bg-card"
                   >
                     <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shrink-0">
-                        {review.userName.charAt(0).toUpperCase()}
+                      <div className="w-12 h-12 rounded-full bg-gray-900 flex items-center justify-center text-white font-bold text-lg shrink-0">
+                        {review.name?.charAt(0).toUpperCase() || "U"}
                       </div>
 
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-2">
                           <div>
-                            <h4 className="font-semibold">{review.userName}</h4>
+                            <h4 className="font-semibold">{review.name || "Anonymous"}</h4>
                             <div className="flex items-center gap-2 mt-1">
                               <div className="flex">
                                 {[...Array(5)].map((_, i) => (
@@ -460,54 +473,22 @@ export default function ProductPage() {
                                     key={i}
                                     className={`w-4 h-4 ${
                                       i < review.rating
-                                        ? "fill-yellow-400 text-yellow-400"
-                                        : "fill-muted text-muted"
+                                        ? "fill-gray-900 text-gray-900"
+                                        : "fill-gray-200 text-gray-200"
                                     }`}
                                   />
                                 ))}
                               </div>
                               <span className="text-sm text-muted-foreground">
-                                {new Date(
-                                  review.createdAt,
-                                ).toLocaleDateString()}
+                                {new Date(review.createdAt).toLocaleDateString()}
                               </span>
                             </div>
                           </div>
-
-                          {review.verified && (
-                            <span className="px-3 py-1 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded-full text-xs font-semibold">
-                              Verified Purchase
-                            </span>
-                          )}
                         </div>
 
-                        <p className="text-foreground leading-relaxed mb-4">
+                        <p className="leading-relaxed mb-4">
                           {review.comment}
                         </p>
-
-                        <button
-                          onClick={() => {
-                            if (!isAuthenticated) {
-                              setShowAuthModal(true);
-                              return;
-                            }
-                            api
-                              .post(`/reviews/${review.id}/helpful`)
-                              .then(() => {
-                                setReviews(
-                                  reviews.map((r: any) =>
-                                    r.id === review.id
-                                      ? { ...r, helpful: r.helpful + 1 }
-                                      : r,
-                                  ),
-                                );
-                              });
-                          }}
-                          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <ThumbsUp className="w-4 h-4" />
-                          Helpful ({review.helpful})
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -523,7 +504,7 @@ export default function ProductPage() {
                 <h2 className="text-3xl font-bold">You May Also Like</h2>
                 <Link
                   href="/tiles"
-                  className="text-sm font-medium hover:underline text-primary"
+                  className="text-sm font-medium hover:underline"
                 >
                   View All →
                 </Link>
@@ -536,7 +517,7 @@ export default function ProductPage() {
                     href={`/tiles/${item.id}`}
                     className="group block"
                   >
-                    <div className="border rounded-2xl overflow-hidden bg-card hover:shadow-xl transition-shadow duration-300">
+                    <div className="border rounded-lg overflow-hidden bg-card hover:shadow-lg transition-shadow duration-300">
                       <div className="aspect-square bg-muted overflow-hidden">
                         {item.images?.[0] ? (
                           <img
@@ -551,12 +532,12 @@ export default function ProductPage() {
                         )}
                       </div>
                       <div className="p-5">
-                        <h3 className="font-semibold mb-2 line-clamp-2 min-h-12 group-hover:text-primary transition-colors">
+                        <h3 className="font-semibold mb-2 line-clamp-2 min-h-[3rem]">
                           {item.name}
                         </h3>
                         <div className="flex items-baseline gap-1">
                           <span className="text-2xl font-bold">
-                            ${item.pricePerSqft}
+                            ₹{item.pricePerSqft}
                           </span>
                           <span className="text-sm text-muted-foreground">
                             /sq ft
@@ -595,7 +576,7 @@ export default function ProductPage() {
       {/* Auth Modal */}
       {showAuthModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card rounded-3xl max-w-md w-full p-8 relative shadow-2xl border">
+          <div className="bg-card rounded-lg max-w-md w-full p-8 relative shadow-xl border">
             <button
               onClick={() => {
                 setShowAuthModal(false);
@@ -621,7 +602,7 @@ export default function ProductPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
                     required
-                    className="w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent bg-background"
+                    className="w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-background"
                   />
                 </div>
               </div>
@@ -638,7 +619,7 @@ export default function ProductPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
-                    className="w-full pl-12 pr-12 py-3 border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent bg-background"
+                    className="w-full pl-12 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-background"
                   />
                   <button
                     type="button"
@@ -668,7 +649,7 @@ export default function ProductPage() {
                 Don't have an account?{" "}
                 <button
                   onClick={() => router.push("/signup")}
-                  className="font-semibold text-primary hover:underline"
+                  className="font-semibold hover:underline"
                 >
                   Sign up
                 </button>

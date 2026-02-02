@@ -89,6 +89,7 @@ model Tile {
   dealer       Dealer        @relation(fields: [dealerId], references: [id])
   images       TileImage[]
   cartItems    CartItem[]
+  wishlist     Wishlist[]  // Add this
   bookings     Booking[]
   reviews      Review[]
 
@@ -116,18 +117,34 @@ model TileImage {
 /////////////////////////////////////////////////
 // END USER (CUSTOMER)
 /////////////////////////////////////////////////
-
 model EndUser {
   id        String   @id @default(uuid())
+  
+  // Existing fields (keep as is)
   name      String
   email     String   @unique
   phone     String?
   city      String?
 
+  // NEW fields - all optional with ? or @default
+  address     String?
+  state       String?
+  pincode     String?
+  duty        String?
+  lookingFor  String[]  @default([])
+  referral    String?
+  isOnboarded Boolean   @default(false)
+  
+  // Relations
   cart      Cart?
   bookings  Booking[]
+  wishlist  Wishlist[]
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([email])
+  @@index([city])
 }
 
 /////////////////////////////////////////////////
@@ -195,6 +212,8 @@ model Booking {
   @@index([status])
   @@index([tileId])
 }
+
+
 model Review {
   id        String   @id @default(uuid())
 
@@ -206,4 +225,18 @@ model Review {
   comment   String?
 
   createdAt DateTime @default(now())
+}
+
+
+model Wishlist {
+  id        String   @id @default(uuid())
+  userId    String
+  user      EndUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tileId    String
+  tile      Tile     @relation(fields: [tileId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, tileId])
+  @@index([userId])
+  @@index([tileId])
 }

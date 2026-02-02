@@ -1,84 +1,80 @@
+// types/index.ts
+
 export interface Tile {
   id: string;
   name: string;
-  images: {
-    id: string;
-    imageUrl: string;
-    createdAt: string;
-    tileId: string;
-  }[];
-  category: TileCategory;
-  size: string;
+  sku: string;
+  category: string;
   material: string;
   finish: string;
-  priceRange: string;
-  minPrice: number;
-  maxPrice: number;
-  city: string;
-  stock: "in-stock" | "limited" | "out-of-stock";
-  status: "pending" | "approved" | "rejected";
-  dealerId: string;
-  dealerName: string;
-  description: string;
-  pdfUrl?: string;
-  pricePerBox: number;
+  size: string;
   pricePerSqft: number;
+  pricePerBox: number;
+  stock: number;
+  description?: string;
+  pdfUrl?: string;
+  isPublished: boolean;
+  dealerId: string;
+  // NO dealer object - hidden from end users
+  images: TileImage[];
   createdAt: string;
+  updatedAt: string;
 }
 
-export interface Dealer {
+export interface TileImage {
   id: string;
-  name: string;
-  shopName: string;
-  email: string;
-  phone: string;
-  city: string;
-  address: string;
-  logo?: string;
-  about: string;
-  verified: boolean;
-  totalTiles: number;
-  approvedTiles: number;
+  imageUrl: string;
+  tileId: string;
   createdAt: string;
 }
 
-export interface User {
-  id: string | undefined;
-  name: string | undefined;
-  email: string | undefined;
-  role: "customer" | "dealer" | "admin";
-  duty: string | "homeowner" | "designer";
-  lookingFor: string[];
-  city: string;
-  phone: string;
-  referral: string;
+export interface CartItem {
+  id: string;
+  cartId: string;
+  tileId: string;
+  tile: Tile;
+  quantityBox: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export type TileCategory =
-  | "floor"
-  | "kitchen"
-  | "bathroom"
-  | "hall"
-  | "outdoor"
-  | "wall";
-export type TileFinish = "glossy" | "matte" | "satin" | "textured";
-export type TileStatus = "pending" | "approved" | "rejected";
-export type StockStatus = "in-stock" | "limited" | "out-of-stock";
+export interface WishlistItem {
+  id: string;
+  userId: string;
+  tileId: string;
+  tile: Tile;
+  createdAt: string;
+}
 
 export interface Booking {
   id: string;
   customerName: string;
   phone: string;
-  email: string | undefined;
-  address: string;
+  email?: string;
   city: string;
-  quantityBox: Number;
-  pincode: string;
-  status: "PENDING" | "CONFIRMED" | "SHIPPED" | "COMPLETED" | "CANCELLED";
+  address?: string;
+  quantityBox: number;
+  status: "NEW" | "CONTACTED" | "CONFIRMED" | "CANCELLED";
   tileId: string;
   tile: Tile;
-  userId: string;
-  user: User;
+  userId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  duty?: string;
+  lookingFor?: string[];
+  referral?: string;
+  isOnboarded: boolean;
   createdAt: string;
   updatedAt: string;
 }

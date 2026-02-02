@@ -1,20 +1,12 @@
 "use client"
-
 import * as React from "react"
 import {
-  AudioWaveform,
-  BookOpen,
-  Bot,
-  Command,
   Flower,
   GalleryHorizontalEnd,
-  GalleryVerticalEnd,
-  Settings2,
   SquareTerminal,
   TicketCheck,
   Users,
 } from "lucide-react"
-
 import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
@@ -29,7 +21,6 @@ import {
   SidebarGroupLabel,
 } from "@/components/ui/sidebar"
 
-// Sample data
 const data = {
   user: {
     name: "shadcn",
@@ -79,9 +70,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-
       <SidebarContent>
-        {/* Fix 2: Use SidebarGroup and SidebarMenu for proper centering when collapsed */}
         <SidebarGroup>
           <SidebarMenu>
             {data.navMain.map((item) => (

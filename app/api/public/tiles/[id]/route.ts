@@ -1,25 +1,24 @@
+// app/api/public/tiles/[id]/route.ts
+
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const tile = await prisma.tile.findFirst({
+    const { id } = await context.params;
+
+    const tile = await prisma.tile.findUnique({
       where: {
-        id: params.id,
-        isPublished: true,
+        id: id,
+        isPublished: true, // Only show published tiles
       },
       include: {
-        dealer: {
-          select: {
-            name: true,
-            shopName: true,
-            city: true,
-          },
-        },
         images: true,
+        // DO NOT include dealer info - keep dealer anonymous
+        dealer: false,
       },
     });
 
@@ -32,7 +31,7 @@ export async function GET(
 
     return NextResponse.json(tile);
   } catch (error: any) {
-    console.error("FETCH_TILE_ERROR:", error);
+    console.error("TILE_GET_ERROR:", error);
     return NextResponse.json(
       { error: "Failed to fetch tile", details: error.message },
       { status: 500 }

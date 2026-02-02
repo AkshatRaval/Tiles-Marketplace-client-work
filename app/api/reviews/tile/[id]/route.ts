@@ -1,9 +1,7 @@
-// app/api/reviews/tile/[id]/route.ts
 
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-// GET - Fetch reviews for a tile
 export async function GET(
   req: Request,
   context: { params: Promise<{ id: string }> }
@@ -20,7 +18,7 @@ export async function GET(
       },
     });
 
-    return NextResponse.json(reviews);
+    return NextResponse.json(reviews || []);
   } catch (error: any) {
     console.error("FETCH_REVIEWS_ERROR:", error);
     return NextResponse.json(
@@ -30,7 +28,6 @@ export async function GET(
   }
 }
 
-// POST - Create a new review
 export async function POST(
   req: Request,
   context: { params: Promise<{ id: string }> }
@@ -40,20 +37,6 @@ export async function POST(
     const body = await req.json();
     const { rating, comment } = body;
 
-    // Get user from token (implement your auth logic)
-    const token = req.headers.get("authorization")?.replace("Bearer ", "");
-    
-    if (!token) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
-    }
-
-    // TODO: Verify token and get user info
-    const userName = "Anonymous User"; // Replace with actual user name from token
-
-    // Validate input
     if (!rating || rating < 1 || rating > 5) {
       return NextResponse.json(
         { error: "Rating must be between 1 and 5" },
@@ -61,18 +44,17 @@ export async function POST(
       );
     }
 
-    if (!comment || comment.trim().length === 0) {
+    if (!comment || !comment.trim()) {
       return NextResponse.json(
         { error: "Comment is required" },
         { status: 400 }
       );
     }
 
-    // Create review
     const review = await prisma.review.create({
       data: {
         tileId: id,
-        name: userName,
+        name: "Customer",
         rating,
         comment: comment.trim(),
       },
