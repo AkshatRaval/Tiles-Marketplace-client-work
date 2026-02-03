@@ -226,7 +226,7 @@ const Profile = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          <Link href="/bookings">
+          <Link href="/profile/my-bookings">
             <div className="bg-card border rounded-2xl p-6 hover:shadow-lg hover:border-primary/50 transition-all cursor-pointer group">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl group-hover:scale-110 transition-transform">
@@ -429,7 +429,7 @@ const Profile = () => {
               <h3 className="font-bold mb-4">Quick Actions</h3>
               <div className="space-y-2">
                 <ActionButton
-                  href="/bookings"
+                  href="/profile/my-bookings"
                   icon={<ShoppingBag size={18} />}
                   label="View Bookings"
                 />

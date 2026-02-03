@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Heart, Ruler, Box, ChevronRight, Loader2, ShoppingCart, Eye } from "lucide-react";
+import { Heart, Ruler, Box, ShoppingCart, Loader2, Eye, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Tile } from "@/types";
@@ -26,6 +26,7 @@ export function TileCard({ tile, className }: TileCardProps) {
   const [currentImg, setCurrentImg] = useState(0);
   const [wishlistLoading, setWishlistLoading] = useState(false);
   const [cartLoading, setCartLoading] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   
   const { user } = useAuth();
   const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
@@ -37,16 +38,19 @@ export function TileCard({ tile, className }: TileCardProps) {
     if (count <= 0)
       return {
         label: "Out of Stock",
-        color: "bg-destructive/10 text-destructive border-destructive/20",
+        color: "bg-red-500/10 text-red-600 border-red-500/20",
+        dotColor: "bg-red-500"
       };
     if (count < 15)
       return {
-        label: "Limited Stock",
-        color: "bg-warning/10 text-warning-foreground border-warning/20",
+        label: "Low Stock",
+        color: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+        dotColor: "bg-amber-500"
       };
     return {
       label: "In Stock",
-      color: "bg-emerald-100 text-emerald-900 border-emerald-300",
+      color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+      dotColor: "bg-emerald-500"
     };
   };
 
@@ -82,15 +86,7 @@ export function TileCard({ tile, className }: TileCardProps) {
       }
     } catch (error: any) {
       console.error("Wishlist error:", error);
-      
-      if (error.response?.status === 401) {
-        toast.error("Please login to add to wishlist");
-        router.push("/login?redirect=/tiles");
-      } else if (error.response?.data?.error?.includes("already in wishlist")) {
-        toast.error("Already in wishlist");
-      } else {
-        toast.error("Something went wrong");
-      }
+      toast.error("Something went wrong");
     } finally {
       setWishlistLoading(false);
     }
@@ -121,13 +117,7 @@ export function TileCard({ tile, className }: TileCardProps) {
       toast.success("Added to cart!");
     } catch (error: any) {
       console.error("Cart error:", error);
-      
-      if (error.response?.status === 401) {
-        toast.error("Please login to add to cart");
-        router.push("/login?redirect=/tiles");
-      } else {
-        toast.error("Failed to add to cart");
-      }
+      toast.error("Failed to add to cart");
     } finally {
       setCartLoading(false);
     }
@@ -152,16 +142,20 @@ export function TileCard({ tile, className }: TileCardProps) {
   };
 
   return (
-    <div className={cn("group block", className)}>
-      <Card className="overflow-hidden border-none bg-transparent shadow-none">
+    <div 
+      className={cn("group block", className)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <Card className="overflow-hidden border-0 bg-card shadow-md hover:shadow-2xl transition-all duration-500 rounded-3xl">
         {/* Image Slider */}
-        <div className="relative aspect-square overflow-hidden rounded-2xl shadow-md transition-all duration-300 group-hover:shadow-xl">
+        <div className="relative aspect-[4/5] overflow-hidden bg-gradient-to-br from-muted/50 to-muted">
           <div
             ref={scrollRef}
             onScroll={handleScroll}
             onTouchStart={() => (isDragging.current = false)}
             onTouchMove={() => (isDragging.current = true)}
-            className="flex h-full w-full snap-x snap-mandatory overflow-x-auto touch-pan-y"
+            className="flex h-full w-full snap-x snap-mandatory overflow-x-auto"
             style={{
               scrollbarWidth: "none",
               msOverflowStyle: "none",
@@ -196,21 +190,28 @@ export function TileCard({ tile, className }: TileCardProps) {
                     fill
                     sizes="(max-width: 768px) 100vw, 33vw"
                     priority={idx === 0}
-                    className="object-cover"
+                    className="object-cover transition-transform duration-700 group-hover:scale-110"
                   />
                 </Link>
               </div>
             ))}
           </div>
 
+          {/* Overlay gradient on hover */}
+          <div className={cn(
+            "absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent transition-opacity duration-500",
+            isHovered ? "opacity-100" : "opacity-0"
+          )} />
+
+          {/* Image Dots */}
           {tile.images.length > 1 && (
-            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5 pointer-events-none">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
               {tile.images.map((_, idx) => (
                 <div
                   key={idx}
                   className={cn(
-                    "h-1.5 w-1.5 rounded-full transition-all duration-300",
-                    currentImg === idx ? "w-4 bg-white" : "bg-white/50"
+                    "h-1 rounded-full transition-all duration-300",
+                    currentImg === idx ? "w-6 bg-white" : "w-1.5 bg-white/60"
                   )}
                 />
               ))}
@@ -218,23 +219,40 @@ export function TileCard({ tile, className }: TileCardProps) {
           )}
 
           {/* Material Badge */}
-          <div className="absolute top-3 left-3 pointer-events-none">
-            <Badge className="bg-black/60 backdrop-blur-md text-white border-none py-1 px-3 text-[10px] font-bold uppercase tracking-widest">
+          <div className="absolute top-4 left-4 z-10">
+            <Badge className="bg-black/80 backdrop-blur-xl text-white border-white/20 py-1.5 px-3 text-xs font-bold uppercase tracking-wider shadow-xl">
               {tile.material}
             </Badge>
           </div>
 
-          {/* Action Buttons */}
-          <div className="absolute top-3 right-3 z-10 flex gap-2">
-            {/* Wishlist Heart Button */}
+          {/* Stock Badge */}
+          <div className="absolute top-4 right-4 z-10">
+            <Badge
+              variant="outline"
+              className={cn(
+                "backdrop-blur-xl text-xs font-bold py-1.5 px-3 shadow-xl border-2",
+                stockStatus.color
+              )}
+            >
+              <span className={cn("w-1.5 h-1.5 rounded-full mr-2 inline-block", stockStatus.dotColor)} />
+              {stockStatus.label}
+            </Badge>
+          </div>
+
+          {/* Action Buttons - Slide in on hover */}
+          <div className={cn(
+            "absolute bottom-4 right-4 flex flex-col gap-2 transition-all duration-500 z-10",
+            isHovered ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
+          )}>
+            {/* Wishlist Button */}
             <Button
               variant="ghost"
               size="icon"
               className={cn(
-                "rounded-full backdrop-blur-md transition-all",
+                "h-11 w-11 rounded-2xl backdrop-blur-xl shadow-2xl transition-all duration-300 border-2",
                 inWishlist
-                  ? "bg-white text-red-500 opacity-100"
-                  : "bg-white/20 text-white opacity-0 group-hover:opacity-100 hover:bg-white hover:text-red-500"
+                  ? "bg-red-500 text-white border-red-500 hover:bg-red-600"
+                  : "bg-white/90 text-gray-700 border-white/50 hover:bg-white hover:text-red-500 hover:border-red-500"
               )}
               onClick={handleWishlistToggle}
               disabled={wishlistLoading}
@@ -244,20 +262,18 @@ export function TileCard({ tile, className }: TileCardProps) {
               ) : (
                 <Heart
                   className={cn(
-                    "h-5 w-5 transition-all",
-                    inWishlist && "fill-current"
+                    "h-5 w-5 transition-transform duration-300",
+                    inWishlist && "fill-current scale-110"
                   )}
                 />
               )}
             </Button>
 
-            {/* Add to Cart Button */}
+            {/* Cart Button */}
             <Button
               variant="ghost"
               size="icon"
-              className={cn(
-                "rounded-full backdrop-blur-md transition-all bg-white/20 text-white opacity-0 group-hover:opacity-100 hover:bg-white hover:text-primary"
-              )}
+              className="h-11 w-11 rounded-2xl bg-primary/90 backdrop-blur-xl shadow-2xl text-primary-foreground hover:bg-primary border-2 border-primary transition-all duration-300"
               onClick={handleAddToCart}
               disabled={cartLoading || tile.stock === 0}
             >
@@ -268,78 +284,75 @@ export function TileCard({ tile, className }: TileCardProps) {
               )}
             </Button>
           </div>
-
-          {/* Stock Badge */}
-          <Badge
-            variant="outline"
-            className={cn(
-              "absolute bottom-3 left-3 text-[10px] font-bold uppercase tracking-tighter pointer-events-none",
-              stockStatus.color
-            )}
-          >
-            {stockStatus.label}
-          </Badge>
         </div>
 
-        {/* Info */}
-        <Link href={`/tiles/${tile.id}`}>
-          <CardContent className="px-1 py-4 cursor-pointer">
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1 flex-1">
-                <h3 className="text-lg font-bold leading-none tracking-tight transition-colors group-hover:text-primary line-clamp-2">
-                  {tile.name}
-                </h3>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
-                  {tile.finish} • {tile.category.replace(/_/g, " ")}
-                </p>
-              </div>
-              <div className="text-right shrink-0">
-                <p className="text-xl font-black text-primary">
-                  ₹{tile.pricePerSqft}
-                </p>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase">
-                  / sq.ft
-                </p>
-              </div>
+        {/* Info Section */}
+        <CardContent className="p-5">
+          <Link href={`/tiles/${tile.id}`}>
+            <div className="mb-3">
+              <h3 className="font-bold text-lg leading-tight line-clamp-2 mb-2 group-hover:text-primary transition-colors duration-300">
+                {tile.name}
+              </h3>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                {tile.finish} • {tile.category.replace(/_/g, " ")}
+              </p>
             </div>
 
             {/* Description Preview */}
             {tile.description && tile.description !== "NOTDEFINED" && (
-              <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+              <p className="text-sm text-muted-foreground line-clamp-2 mb-4 leading-relaxed">
                 {tile.description}
               </p>
             )}
 
-            <div className="mt-4 flex items-center gap-4 border-t pt-4">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                <Ruler className="h-3.5 w-3.5" />
-                <span>{tile.size}</span>
+            {/* Price */}
+            <div className="flex items-end justify-between mb-4 pb-4 border-b border-border/50">
+              <div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-black bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                    ₹{tile.pricePerSqft}
+                  </span>
+                  <span className="text-xs font-bold text-muted-foreground">
+                    /sq ft
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5 border-l pl-4 text-xs font-semibold text-muted-foreground">
-                <Box className="h-3.5 w-3.5" />
-                <span>₹{tile.pricePerBox}/Box</span>
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Per Box</p>
+                <p className="text-sm font-bold">₹{tile.pricePerBox}</p>
               </div>
             </div>
 
-            <div className="mt-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    router.push(`/tiles/${tile.id}`);
-                  }}
-                >
-                  <Eye className="h-3 w-3 mr-1" />
-                  View Details
-                </Button>
+            {/* Specifications */}
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Ruler className="h-4 w-4" />
+                <span className="font-medium">{tile.size}</span>
               </div>
-              <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1 text-muted-foreground" />
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Box className="h-4 w-4" />
+                <span className="font-medium">{tile.stock} boxes</span>
+              </div>
             </div>
-          </CardContent>
-        </Link>
+          </Link>
+
+          {/* View Details Button - Shows on hover */}
+          <div className={cn(
+            "mt-4 transition-all duration-300",
+            isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+          )}>
+            <Link href={`/tiles/${tile.id}`}>
+              <Button 
+                variant="outline" 
+                className="w-full group/btn border-2 hover:border-primary hover:bg-primary hover:text-primary-foreground transition-all duration-300"
+              >
+                <Eye className="h-4 w-4 mr-2 group-hover/btn:scale-110 transition-transform" />
+                View Details
+                <Sparkles className="h-4 w-4 ml-auto opacity-0 group-hover/btn:opacity-100 transition-opacity" />
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
       </Card>
     </div>
   );

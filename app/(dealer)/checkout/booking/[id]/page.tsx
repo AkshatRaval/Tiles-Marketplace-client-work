@@ -1,6 +1,7 @@
 "use client";
+
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,21 +12,22 @@ import {
   Mail,
   User,
   CheckCircle2,
-  AlertCircle,
+  Loader2,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/components/auth-provider";
+import Image from "next/image";
+import toast from "react-hot-toast";
 
-export default function Booking() {
+export default function CheckoutPage() {
   const router = useRouter();
-  const params = useParams();
-  const tileId = params?.id as string;
+  const { user } = useAuth();
 
-  const [tile, setTile] = useState<any>(null);
+  const [cart, setCart] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [error, setError] = useState("");
 
   // Form fields
   const [customerName, setCustomerName] = useState("");
@@ -34,40 +36,37 @@ export default function Booking() {
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [pincode, setPincode] = useState("");
-  const [quantityBox, setQuantityBox] = useState(1);
+  const [notes, setNotes] = useState("");
 
   // Errors
   const [errors, setErrors] = useState<any>({});
 
   useEffect(() => {
-    const loadData = async () => {
-      if (!tileId) {
-        setError("No product selected");
-        setLoading(false);
-        return;
-      }
+    if (!user) {
+      toast.error("Please login to continue");
+      router.push("/login");
+      return;
+    }
+    loadCart();
+  }, [user]);
 
-      try {
-        setLoading(true);
-        const response = await api.get(`/admin/tiles/${tileId}`);
-        setTile(response.data);
-        setError("");
-        
-        // Load user data from localStorage
-        const userName = localStorage.getItem("userName");
-        const userEmail = localStorage.getItem("userEmail");
-        if (userName) setCustomerName(userName);
-        if (userEmail) setEmail(userEmail);
-      } catch (err) {
-        console.error("Failed to load product:", err);
-        setError("Failed to load product. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
+  const loadCart = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/cart");
+      setCart(res.data);
 
-    loadData();
-  }, [tileId]);
+      // Pre-fill user data
+      if (user) {
+        setEmail(user.email || "");
+      }
+    } catch (error) {
+      console.error("Failed to load cart:", error);
+      toast.error("Failed to load cart");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const validateForm = () => {
     const newErrors: any = {};
@@ -77,137 +76,150 @@ export default function Booking() {
       newErrors.phone = "Phone is required";
     } else if (!/^\d{10}$/.test(phone.replace(/\D/g, ""))) {
       newErrors.phone = "Enter valid 10-digit phone number";
-    } 
+    }
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       newErrors.email = "Enter valid email";
     }
     if (!address.trim()) newErrors.address = "Address is required";
     if (!city.trim()) newErrors.city = "City is required";
-    if (pincode && !/^\d{6}$/.test(pincode)) {
-      newErrors.pincode = "Enter valid 6-digit pincode";
-    }
-    if (quantityBox < 1) newErrors.quantityBox = "Minimum 1 box required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-const {user} = useAuth()
-console.log(user)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) return;
-    if (!tileId) {
-      alert("Product not selected");
+    if (!validateForm()) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    if (!cart?.items || cart.items.length === 0) {
+      toast.error("Cart is empty");
       return;
     }
 
     setSubmitting(true);
+
     try {
-      await api.post("/users/bookings", {
-        tileId,
-        userId: user?.id,
-        customerName: customerName.trim(),
-        phone: phone.trim(),
-        email: email.trim() || null,
-        address: address.trim(),
-        city: city.trim(),
-        pincode: pincode.trim() || null,
-        quantityBox,
-      });
+      // Create appointment for each cart item
+      const bookingPromises = cart.items.map((item: any) =>
+        api.post("/bookings", {
+          tileId: item.tileId,
+          customerName: customerName.trim(),
+          phone: phone.trim(),
+          email: email.trim() || null,
+          address: address.trim(),
+          city: city.trim(),
+          quantityBox: item.quantityBox,
+        })
+      );
+
+      await Promise.all(bookingPromises);
+
+      // Clear cart after successful booking
+      for (const item of cart.items) {
+        await api.delete(`/cart/${item.id}`);
+      }
 
       setSuccess(true);
-    } catch (err: any) {
-      console.error("Booking failed:", err);
-      alert(err.response?.data?.message || "Booking failed. Please try again.");
+      toast.success("Appointment booked successfully!");
+    } catch (error: any) {
+      console.error("Booking failed:", error);
+      toast.error("Failed to book appointment");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-muted border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading product...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-12 h-12 animate-spin text-primary" />
       </div>
     );
   }
 
-  // Error state
-  if (error || !tile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center max-w-md mx-auto px-4">
-          <AlertCircle className="w-16 h-16 text-destructive mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-4">Cannot Load Product</h1>
-          <p className="text-muted-foreground mb-8">
-            {error || "Product not found"}
-          </p>
-          <Link href="/tiles">
-            <Button>Browse Products</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // Success state
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center max-w-md mx-auto px-4">
-          <div className="w-20 h-20 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 className="w-12 h-12 text-green-600 dark:text-green-400" />
+          <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle2 className="w-12 h-12 text-green-600" />
           </div>
-          <h1 className="text-3xl font-bold mb-4">Booking Successful!</h1>
+          <h1 className="text-3xl font-bold mb-4">Appointment Confirmed!</h1>
           <p className="text-muted-foreground mb-8">
-            Your booking has been placed. We'll contact you soon!
+            We've received your appointment request. Our team will contact you
+            shortly to confirm the details.
           </p>
           <div className="space-y-3">
-            <Link href="/tiles">
-              <Button className="w-full">Continue Shopping</Button>
-            </Link>
+            <Button onClick={() => router.push("/tiles")} className="w-full">
+              Continue Shopping
+            </Button>
+            <Button
+              onClick={() => router.push("/bookings")}
+              variant="outline"
+              className="w-full"
+            >
+              View My Appointments
+            </Button>
           </div>
         </div>
       </div>
     );
   }
 
-  const totalPrice = tile.pricePerSqft * quantityBox * 10;
+  if (!cart?.items || cart.items.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+          <h1 className="text-2xl font-bold mb-2">Cart is Empty</h1>
+          <p className="text-muted-foreground mb-6">
+            Add some items to cart first
+          </p>
+          <Button onClick={() => router.push("/tiles")}>Browse Tiles</Button>
+        </div>
+      </div>
+    );
+  }
 
-  // Main form
   return (
     <div className="min-h-screen bg-background">
-      <div className="border-b sticky top-0 z-40 backdrop-blur-lg bg-background/80">
+      {/* Header */}
+      <div className="border-b sticky top-0 z-40 bg-background">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <Link
-            href={`/tiles/${tileId}`}
-            className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            href="/cart"
+            className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="w-4 h-4 mr-1" />
-            Back to Product
+            Back to Cart
           </Link>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8 md:py-12">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Complete Your Booking</h1>
-          <p className="text-muted-foreground">Fill in your details to place the order</p>
+          <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+            <Calendar className="text-primary" />
+            Schedule Viewing Appointment
+          </h1>
+          <p className="text-muted-foreground">
+            No payment required - we'll contact you to schedule a visit
+          </p>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
+          {/* Form */}
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Personal Info */}
               <div className="bg-card border rounded-2xl p-6">
                 <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                   <User className="w-5 h-5" />
-                  Personal Information
+                  Your Information
                 </h2>
 
                 <div className="space-y-4">
@@ -220,12 +232,14 @@ console.log(user)
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       placeholder="John Doe"
-                      className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent bg-background ${
+                      className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary bg-background ${
                         errors.customerName ? "border-red-500" : ""
                       }`}
                     />
                     {errors.customerName && (
-                      <p className="text-sm text-red-500 mt-1">{errors.customerName}</p>
+                      <p className="text-sm text-red-500 mt-1">
+                        {errors.customerName}
+                      </p>
                     )}
                   </div>
 
@@ -239,29 +253,28 @@ console.log(user)
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="9876543210"
-                        className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent bg-background ${
+                        className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary bg-background ${
                           errors.phone ? "border-red-500" : ""
                         }`}
                       />
                       {errors.phone && (
-                        <p className="text-sm text-red-500 mt-1">{errors.phone}</p>
+                        <p className="text-sm text-red-500 mt-1">
+                          {errors.phone}
+                        </p>
                       )}
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Email (Optional)</label>
+                      <label className="block text-sm font-medium mb-2">
+                        Email (Optional)
+                      </label>
                       <input
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="john@example.com"
-                        className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent bg-background ${
-                          errors.email ? "border-red-500" : ""
-                        }`}
+                        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary bg-background"
                       />
-                      {errors.email && (
-                        <p className="text-sm text-red-500 mt-1">{errors.email}</p>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -271,7 +284,7 @@ console.log(user)
               <div className="bg-card border rounded-2xl p-6">
                 <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                   <MapPin className="w-5 h-5" />
-                  Delivery Address
+                  Site Address
                 </h2>
 
                 <div className="space-y-4">
@@ -284,13 +297,10 @@ console.log(user)
                       onChange={(e) => setAddress(e.target.value)}
                       placeholder="House No, Street, Area"
                       rows={3}
-                      className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent bg-background resize-none ${
+                      className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary bg-background resize-none ${
                         errors.address ? "border-red-500" : ""
                       }`}
                     />
-                    {errors.address && (
-                      <p className="text-sm text-red-500 mt-1">{errors.address}</p>
-                    )}
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-4">
@@ -303,69 +313,40 @@ console.log(user)
                         value={city}
                         onChange={(e) => setCity(e.target.value)}
                         placeholder="Mumbai"
-                        className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent bg-background ${
+                        className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary bg-background ${
                           errors.city ? "border-red-500" : ""
                         }`}
                       />
-                      {errors.city && (
-                        <p className="text-sm text-red-500 mt-1">{errors.city}</p>
-                      )}
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Pincode (Optional)</label>
+                      <label className="block text-sm font-medium mb-2">
+                        PIN Code (Optional)
+                      </label>
                       <input
                         type="text"
                         value={pincode}
                         onChange={(e) => setPincode(e.target.value)}
                         placeholder="400001"
                         maxLength={6}
-                        className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent bg-background ${
-                          errors.pincode ? "border-red-500" : ""
-                        }`}
+                        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary bg-background"
                       />
-                      {errors.pincode && (
-                        <p className="text-sm text-red-500 mt-1">{errors.pincode}</p>
-                      )}
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Quantity */}
-              <div className="bg-card border rounded-2xl p-6">
-                <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                  <Package className="w-5 h-5" />
-                  Quantity
-                </h2>
-
-                <div className="flex items-center gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setQuantityBox(Math.max(1, quantityBox - 1))}
-                    className="w-12 h-12 border rounded-xl hover:bg-muted transition-colors flex items-center justify-center font-bold text-xl"
-                  >
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    value={quantityBox}
-                    onChange={(e) => setQuantityBox(Math.max(1, parseInt(e.target.value) || 1))}
-                    min="1"
-                    className="w-24 text-center px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary bg-background font-bold text-xl"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setQuantityBox(quantityBox + 1)}
-                    className="w-12 h-12 border rounded-xl hover:bg-muted transition-colors flex items-center justify-center font-bold text-xl"
-                  >
-                    +
-                  </button>
-                  <span className="text-sm text-muted-foreground">boxes</span>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Additional Notes (Optional)
+                    </label>
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Any specific requirements or preferred time..."
+                      rows={2}
+                      className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary bg-background resize-none"
+                    />
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground mt-3">
-                  Each box covers approximately 10 sq ft
-                </p>
               </div>
             </form>
           </div>
@@ -373,43 +354,40 @@ console.log(user)
           {/* Summary */}
           <div className="lg:sticky lg:top-24 h-fit">
             <div className="bg-card border rounded-2xl p-6">
-              <h2 className="text-xl font-bold mb-6">Order Summary</h2>
+              <h2 className="text-xl font-bold mb-6">Appointment Summary</h2>
 
-              <div className="flex gap-4 mb-6 pb-6 border-b">
-                <div className="w-20 h-20 bg-muted rounded-lg overflow-hidden shrink-0">
-                  {tile.images?.[0] ? (
-                    <img src={tile.images[0].imageUrl} alt={tile.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Package className="w-8 h-8 text-muted-foreground" />
+              <div className="space-y-4 mb-6">
+                {cart.items.map((item: any) => (
+                  <div key={item.id} className="flex gap-3 pb-4 border-b last:border-0">
+                    <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden shrink-0">
+                      {item.tile.images?.[0] ? (
+                        <Image
+                          src={item.tile.images[0].imageUrl}
+                          alt={item.tile.name}
+                          width={64}
+                          height={64}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Package className="w-full h-full p-4 text-muted-foreground" />
+                      )}
                     </div>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold mb-1 line-clamp-2">{tile.name}</h3>
-                  <p className="text-sm text-muted-foreground">{tile.category}</p>
-                </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm line-clamp-2 mb-1">
+                        {item.tile.name}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {item.quantityBox} boxes
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
 
-              <div className="space-y-3 mb-6">
+              <div className="space-y-2 mb-6 pb-6 border-b">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Price/sq ft</span>
-                  <span className="font-medium">${tile.pricePerSqft}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Quantity</span>
-                  <span className="font-medium">{quantityBox} boxes</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Coverage</span>
-                  <span className="font-medium">{quantityBox * 10} sq ft</span>
-                </div>
-              </div>
-
-              <div className="border-t pt-4 mb-6">
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold">Total</span>
-                  <span className="text-2xl font-bold">${totalPrice.toFixed(2)}</span>
+                  <span className="text-muted-foreground">Total Items</span>
+                  <span className="font-medium">{cart.totalItems} boxes</span>
                 </div>
               </div>
 
@@ -419,12 +397,25 @@ console.log(user)
                 className="w-full h-14 text-base"
                 disabled={submitting}
               >
-                {submitting ? "Processing..." : "Place Booking"}
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    Booking...
+                  </>
+                ) : (
+                  <>
+                    <Calendar className="w-5 h-5 mr-2" />
+                    Schedule Appointment
+                  </>
+                )}
               </Button>
 
-              <p className="text-xs text-muted-foreground text-center mt-4">
-                By placing this booking, you agree to our terms
-              </p>
+              <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <p className="text-xs text-center text-muted-foreground">
+                  💡 This is a viewing appointment request. Our team will
+                  contact you to confirm the details.
+                </p>
+              </div>
             </div>
           </div>
         </div>

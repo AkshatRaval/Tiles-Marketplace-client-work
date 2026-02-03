@@ -1,12 +1,15 @@
 import React, { ReactNode } from "react";
 import Navbar from "@/components/Navigation";
+import { WishlistProvider } from "@/components/wishlist-provider";
 
-const layout = ({children} : {children: ReactNode}) => {
+const layout = ({ children }: { children: ReactNode }) => {
   return (
-    <div>
-      <Navbar />
-      {children}
-    </div>
+    <WishlistProvider>
+      <div>
+        <Navbar />
+        {children}
+      </div>
+    </WishlistProvider>
   );
 };
 
