@@ -39,7 +39,9 @@ export async function GET(req: Request) {
         skip,
         include: {
           dealer: { select: { name: true, shopName: true } },
-          images: { take: 3 },
+          images: { 
+            orderBy: { createdAt: "asc" }, // ✅ Order images by creation time (first uploaded = first shown)
+          },
         },
         orderBy: { createdAt: "desc" },
       }),
@@ -53,7 +55,7 @@ export async function GET(req: Request) {
       totalPages: Math.ceil(totalCount / limit),
     });
   } catch (error) {
-    console.error(error);
+    console.error("GET_TILES_ERROR:", error);
     return NextResponse.json(
       { error: "Failed to fetch tiles" },
       { status: 500 },
@@ -62,11 +64,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  // Define body outside or initialize inside carefully
-  let body: any; 
-
   try {
-    body = await req.json();
+    const body = await req.json();
 
     const {
       name,
@@ -84,31 +83,82 @@ export async function POST(req: Request) {
       pdfUrl,
     } = body;
 
+    // ✅ Validation
+    if (!name || !sku || !category || !material || !finish || !size) {
+      return NextResponse.json(
+        { error: "Missing required fields: name, sku, category, material, finish, size" },
+        { status: 400 }
+      );
+    }
+
+    if (!dealerId) {
+      return NextResponse.json(
+        { error: "Dealer ID is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!imageUrls || imageUrls.length === 0) {
+      return NextResponse.json(
+        { error: "At least one image is required" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Check if dealer exists
+    const dealerExists = await prisma.dealer.findUnique({
+      where: { id: dealerId },
+    });
+
+    if (!dealerExists) {
+      return NextResponse.json(
+        { error: "Dealer not found" },
+        { status: 404 }
+      );
+    }
+
+    // ✅ Check if SKU already exists
+    const existingSku = await prisma.tile.findUnique({
+      where: { sku: sku },
+    });
+
+    if (existingSku) {
+      return NextResponse.json(
+        { error: "A tile with this SKU already exists" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Create tile - REMOVED dealerId from data (can't have both dealerId and dealer relation)
     const newTile = await prisma.tile.create({
       data: {
-        name: name || "NOTDEFINED",
-        sku: sku || "NOTDEFINED",
-        size: size || "NOTDEFINED",
-        material: material || "NOTDEFINED",
+        name: name,
+        sku: sku,
+        size: size,
+        material: material,
         finish: normalizeEnum(finish) as any,
         category: normalizeEnum(category) as any,
-        pricePerSqft: Number(pricePerSqft) || 0,
-        pricePerBox: Number(pricePerBox) || 0,
-        stock: Math.round(Number(stock)) || 0, // Ensure Int
+        pricePerSqft: parseFloat(pricePerSqft) || 0,
+        pricePerBox: parseFloat(pricePerBox) || 0,
+        stock: parseInt(stock) || 0,
         description: description || null,
         pdfUrl: pdfUrl || null,
-        dealerId: dealerId || null,
+        // ✅ ONLY use dealer relation, NOT dealerId
         dealer: {
           connect: { id: dealerId },
         },
+        // ✅ Create images in order they were uploaded
         images: {
-          create: imageUrls.map((url: string) => ({
+          create: imageUrls.map((url: string, index: number) => ({
             imageUrl: url,
           })),
         },
       },
       include: {
-        images: true,
+        images: {
+          orderBy: { createdAt: "asc" }, // ✅ Return images in order
+        },
+        dealer: true,
       },
     });
 
@@ -119,8 +169,15 @@ export async function POST(req: Request) {
 
     if (error.code === "P2002") {
       return NextResponse.json(
-        { error: "A tile with this SKU already exists." },
+        { error: "A tile with this SKU already exists" },
         { status: 400 }
+      );
+    }
+
+    if (error.code === "P2025") {
+      return NextResponse.json(
+        { error: "Dealer not found" },
+        { status: 404 }
       );
     }
 

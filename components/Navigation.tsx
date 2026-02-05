@@ -30,8 +30,8 @@ const Navbar = () => {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [cartCount, setCartCount] = useState<Number>(0); // Example cart count
-  const [wishlistCount, setWishlistCount] = useState<Number>(0); // Example wishlist count
+  const [cartCount, setCartCount] = useState<any>(0); // Example cart count
+  const [wishlistCount, setWishlistCount] = useState<any>(0); // Example wishlist count
   const isMobile = useIsMobile();
   const { isLoading, user, signOut } = useAuth();
   const router = useRouter();

@@ -13,37 +13,12 @@ import {
   TrendingUp,
   ChevronLeft,
   ChevronRight,
-  Heart,
   Flame,
   Zap,
 } from "lucide-react";
 import { api } from "@/lib/api";
-
-interface TileImage {
-  id: string;
-  imageUrl: string;
-}
-
-interface Dealer {
-  name: string;
-  shopName: string;
-}
-
-interface Tile {
-  id: string;
-  name: string;
-  sku: string;
-  category: string;
-  material: string;
-  size: string;
-  finish: string;
-  pricePerSqft: number;
-  pricePerBox: number;
-  stock: number;
-  description: string | null;
-  images: TileImage[];
-  dealer: Dealer;
-}
+import { TileCard } from "@/components/card/TilesCard";
+import type { Tile } from "@/types"; 
 
 interface CategoryStat {
   category: string;
@@ -87,11 +62,10 @@ const MainHome = () => {
     try {
       setLoading(true);
       
-      // Load all data in parallel
       const [featuredRes, newArrivalsRes, popularRes, categoriesRes, testimonialsRes] = await Promise.all([
         api.get("/public/tiles", { params: { limit: 8, page: 1 } }),
-        api.get("/public/tiles", { params: { limit: 8, page: 1 } }), // You can add different sorting later
-        api.get("/public/tiles", { params: { limit: 4, page: 1 } }), // You can add different sorting later
+        api.get("/public/tiles", { params: { limit: 8, page: 1 } }),
+        api.get("/public/tiles", { params: { limit: 4, page: 1 } }),
         api.get("/stats/categories"),
         api.get("/stats/testimonials", { params: { limit: 5, featured: true } }),
       ]);
@@ -116,59 +90,11 @@ const MainHome = () => {
     }
   };
 
-  // Map category stats to display format
   const categories = categoryStats.map((stat) => ({
     name: stat.category.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase()),
     count: `${stat.count}+`,
     link: `/tiles?category=${stat.category}`,
   }));
-
-  const renderTileCard = (tile: Tile) => (
-    <Link key={tile.id} href={`/tiles/${tile.id}`}>
-      <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 border hover:border-primary/50">
-        <div className="relative aspect-square overflow-hidden bg-muted">
-          {tile.images?.[0] ? (
-            <Image
-              src={tile.images[0].imageUrl}
-              alt={tile.name}
-              fill
-              className="object-cover group-hover:scale-110 transition-transform duration-500"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Package className="w-12 h-12 text-muted-foreground" />
-            </div>
-          )}
-          <div className="absolute top-3 left-3">
-            <span className="bg-primary text-primary-foreground px-2 py-1 rounded-md text-xs font-bold">
-              {tile.stock > 0 ? "IN STOCK" : "OUT OF STOCK"}
-            </span>
-          </div>
-          <button className="absolute top-3 right-3 w-8 h-8 bg-background rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-            <Heart className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="p-4">
-          <div className="text-xs text-primary font-semibold mb-1 uppercase">
-            {tile.category.replace(/_/g, " ")}
-          </div>
-          <h3 className="font-bold mb-2 line-clamp-2 group-hover:text-primary transition-colors">
-            {tile.name}
-          </h3>
-          <div className="flex items-center gap-1 mb-3">
-            {[...Array(5)].map((_, i) => (
-              <Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-            ))}
-            <span className="text-xs text-muted-foreground ml-1">(4.8)</span>
-          </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-xl font-bold">₹{tile.pricePerSqft}</span>
-            <span className="text-xs text-muted-foreground">/sq ft</span>
-          </div>
-        </div>
-      </Card>
-    </Link>
-  );
 
   return (
     <div className="bg-background">
@@ -245,7 +171,9 @@ const MainHome = () => {
           </div>
         ) : featuredTiles.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredTiles.map(renderTileCard)}
+            {featuredTiles.map((tile) => (
+              <TileCard key={tile.id} tile={tile} />
+            ))}
           </div>
         ) : (
           <div className="text-center py-12">
@@ -317,7 +245,9 @@ const MainHome = () => {
           </div>
         ) : newArrivals.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {newArrivals.map(renderTileCard)}
+            {newArrivals.map((tile) => (
+              <TileCard key={tile.id} tile={tile} />
+            ))}
           </div>
         ) : (
           <div className="text-center py-12">
@@ -353,7 +283,9 @@ const MainHome = () => {
             </div>
           ) : popularTiles.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {popularTiles.map(renderTileCard)}
+              {popularTiles.map((tile) => (
+                <TileCard key={tile.id} tile={tile} />
+              ))}
             </div>
           ) : (
             <div className="text-center py-12">
