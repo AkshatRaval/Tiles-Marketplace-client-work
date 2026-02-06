@@ -62,7 +62,6 @@ export async function GET(req: Request) {
     );
   }
 }
-
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -74,6 +73,9 @@ export async function POST(req: Request) {
       material,
       size,
       finish,
+      color,        // Added
+      application,  // Added
+      mount,        // Added
       pricePerSqft,
       pricePerBox,
       stock,
@@ -83,26 +85,20 @@ export async function POST(req: Request) {
       pdfUrl,
     } = body;
 
-    // ✅ Validation
-    if (!name || !sku || !category || !material || !finish || !size) {
+    // ✅ Validation (Added the new mandatory fields if they are required in your DB)
+    if (!name || !sku || !category || !material || !finish || !size || !color || !application || !mount) {
       return NextResponse.json(
-        { error: "Missing required fields: name, sku, category, material, finish, size" },
+        { error: "Missing required fields: name, sku, category, material, finish, size, color, application, or mount" },
         { status: 400 }
       );
     }
 
     if (!dealerId) {
-      return NextResponse.json(
-        { error: "Dealer ID is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Dealer ID is required" }, { status: 400 });
     }
 
     if (!imageUrls || imageUrls.length === 0) {
-      return NextResponse.json(
-        { error: "At least one image is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "At least one image is required" }, { status: 400 });
     }
 
     // ✅ Check if dealer exists
@@ -111,10 +107,7 @@ export async function POST(req: Request) {
     });
 
     if (!dealerExists) {
-      return NextResponse.json(
-        { error: "Dealer not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Dealer not found" }, { status: 404 });
     }
 
     // ✅ Check if SKU already exists
@@ -123,41 +116,40 @@ export async function POST(req: Request) {
     });
 
     if (existingSku) {
-      return NextResponse.json(
-        { error: "A tile with this SKU already exists" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "A tile with this SKU already exists" }, { status: 400 });
     }
 
-    // ✅ Create tile - REMOVED dealerId from data (can't have both dealerId and dealer relation)
+    // ✅ Create tile
     const newTile = await prisma.tile.create({
       data: {
-        name: name,
-        sku: sku,
-        size: size,
-        material: material,
+        name,
+        sku,
+        size,
+        material,
+        description: description || null,
+        pdfUrl: pdfUrl || null,
+        // Enums normalized
         finish: normalizeEnum(finish) as any,
         category: normalizeEnum(category) as any,
+        color: normalizeEnum(color) as any,             // Added
+        application: normalizeEnum(application) as any, // Added
+        mount: normalizeEnum(mount) as any,             // Added
+        // Numeric conversion (just in case frontend sends strings)
         pricePerSqft: parseFloat(pricePerSqft) || 0,
         pricePerBox: parseFloat(pricePerBox) || 0,
         stock: parseInt(stock) || 0,
-        description: description || null,
-        pdfUrl: pdfUrl || null,
-        // ✅ ONLY use dealer relation, NOT dealerId
+        // Relations
         dealer: {
           connect: { id: dealerId },
         },
-        // ✅ Create images in order they were uploaded
         images: {
-          create: imageUrls.map((url: string, index: number) => ({
+          create: imageUrls.map((url: string) => ({
             imageUrl: url,
           })),
         },
       },
       include: {
-        images: {
-          orderBy: { createdAt: "asc" }, // ✅ Return images in order
-        },
+        images: true,
         dealer: true,
       },
     });
@@ -168,17 +160,7 @@ export async function POST(req: Request) {
     console.error("CREATE_TILE_ERROR:", error);
 
     if (error.code === "P2002") {
-      return NextResponse.json(
-        { error: "A tile with this SKU already exists" },
-        { status: 400 }
-      );
-    }
-
-    if (error.code === "P2025") {
-      return NextResponse.json(
-        { error: "Dealer not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "A tile with this SKU already exists" }, { status: 400 });
     }
 
     return NextResponse.json(

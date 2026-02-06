@@ -15,14 +15,16 @@ import {
   ZoomIn,
   Layers,
   MessageSquare,
-  ThumbsUp,
   Package,
+  FileText,
+  ArrowRight,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/auth-provider";
 import { useWishlist } from "@/components/wishlist-provider";
+import { LoginDialog } from "@/components/auth/login-dialog";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
@@ -38,13 +40,15 @@ export default function TilePage() {
   const [loading, setLoading] = useState(true);
   const [activeImg, setActiveImg] = useState(0);
   const [zoomModal, setZoomModal] = useState(false);
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
   const [cartLoading, setCartLoading] = useState(false);
   const [wishlistLoading, setWishlistLoading] = useState(false);
-  
-  // Review form
+
+  // User data from DB
+  const [dbUser, setDbUser] = useState<any>(null);
+
   const [reviewText, setReviewText] = useState("");
   const [reviewRating, setReviewRating] = useState(5);
-  const [reviewName, setReviewName] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
 
   const { user } = useAuth();
@@ -56,65 +60,69 @@ export default function TilePage() {
     if (id) loadData();
   }, [id]);
 
+  // Fetch real DB user when auth state changes
+  useEffect(() => {
+    if (user) {
+      fetchUserProfile();
+    } else {
+      setDbUser(null);
+    }
+  }, [user]);
+
+  const fetchUserProfile = async () => {
+    try {
+      const res = await api.get("/users/profile");
+      setDbUser(res.data);
+    } catch (err) {
+      console.error("Failed to fetch DB user:", err);
+    }
+  };
   const loadData = async () => {
     try {
       setLoading(true);
       const response = await api.get(`/public/tiles/${id}`);
       setTile(response.data);
 
-      // Load reviews
-      try {
-        const r = await api.get(`/reviews/tile/${id}`);
-        setReviews(r.data || []);
-      } catch (err) {
-        console.error("Failed to load reviews:", err);
-      }
+      const [revRes, allTilesRes] = await Promise.all([
+        api.get(`/reviews/tile/${id}`).catch(() => ({ data: [] })),
+        api.get("/public/tiles").catch(() => ({ data: { tiles: [] } })),
+      ]);
 
-      // Load related tiles
-      try {
-        const all = await api.get("/public/tiles");
-        let rel =
-          all.data.tiles?.filter(
-            (t: any) => t.category === response.data.category && t.id !== id
-          ) || [];
+      setReviews(revRes.data);
 
-        if (rel.length < 4) {
-          rel = all.data.tiles?.filter((t: any) => t.id !== id) || [];
-        }
-        setRelatedTiles(rel.slice(0, 4));
-      } catch (err) {
-        console.error("Failed to load related tiles:", err);
-      }
+      let rel =
+        allTilesRes.data.tiles?.filter(
+          (t: any) => t.category === response.data.category && t.id !== id,
+        ) || [];
+      if (rel.length < 4)
+        rel = allTilesRes.data.tiles?.filter((t: any) => t.id !== id) || [];
+      setRelatedTiles(rel.slice(0, 4));
     } catch (err) {
-      console.error("Failed to load tile:", err);
       toast.error("Failed to load product");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddToCart = async () => {
-    if (!user) {
-      toast.error("Please login to add to cart");
-      router.push("/login");
-      return;
+  const checkAuth = () => {
+    if (!user || !dbUser) {
+      setShowLoginPopup(true);
+      return false;
     }
+    return true;
+  };
 
+  const handleAddToCart = async () => {
+    if (!checkAuth()) return;
     if (tile.stock === 0) {
       toast.error("Out of stock");
       return;
     }
-
     setCartLoading(true);
-
     try {
-      await api.post("/cart", {
-        tileId: tile.id,
-        quantityBox: 1,
-      });
+      await api.post("/cart", { tileId: tile.id, quantityBox: 1 });
       toast.success("Added to cart!");
-    } catch (error) {
-      console.error("Cart error:", error);
+    } catch {
       toast.error("Failed to add to cart");
     } finally {
       setCartLoading(false);
@@ -122,14 +130,8 @@ export default function TilePage() {
   };
 
   const handleWishlistToggle = async () => {
-    if (!user) {
-      toast.error("Please login");
-      router.push("/login");
-      return;
-    }
-
+    if (!checkAuth()) return;
     setWishlistLoading(true);
-
     try {
       if (inWishlist) {
         await removeFromWishlist(tile.id);
@@ -138,35 +140,30 @@ export default function TilePage() {
         await addToWishlist(tile.id);
         toast.success("Added to wishlist!");
       }
-    } catch (error) {
-      console.error("Wishlist error:", error);
-      toast.error("Something went wrong");
+    } catch {
+      toast.error("Error updating wishlist");
     } finally {
       setWishlistLoading(false);
     }
   };
 
   const handleReviewSubmit = async () => {
-    if (!reviewText.trim() || !reviewName.trim()) {
-      toast.error("Please fill all fields");
+    if (!checkAuth()) return;
+    if (!reviewText.trim()) {
+      toast.error("Please write a comment");
       return;
     }
-
     setSubmittingReview(true);
-
     try {
       const res = await api.post(`/reviews/tile/${id}`, {
-        name: reviewName,
+        name: dbUser.name || "Verified Customer",
         rating: reviewRating,
         comment: reviewText,
       });
       setReviews([res.data, ...reviews]);
       setReviewText("");
-      setReviewName("");
-      setReviewRating(5);
       toast.success("Review submitted!");
-    } catch (error) {
-      console.error("Review error:", error);
+    } catch {
       toast.error("Failed to submit review");
     } finally {
       setSubmittingReview(false);
@@ -178,60 +175,56 @@ export default function TilePage() {
       ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
       : 0;
 
-  if (loading) {
+  if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-12 h-12 animate-spin text-primary" />
       </div>
     );
-  }
-
-  if (!tile) {
+  if (!tile)
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Tile not found</h1>
-          <Button onClick={() => router.push("/tiles")}>Browse Tiles</Button>
-        </div>
+      <div className="min-h-screen flex items-center justify-center text-center">
+        <h1 className="text-2xl font-bold mb-4">Tile not found</h1>
+        <Button onClick={() => router.push("/tiles")}>Browse Tiles</Button>
       </div>
     );
-  }
 
   const currentImage = tile.images?.[activeImg]?.imageUrl;
 
   return (
     <>
-      <div className="min-h-screen bg-background">
-        {/* Header */}
-        <div className="border-b bg-card/50 backdrop-blur-lg sticky top-0 z-40">
-          <div className="max-w-7xl mx-auto px-4 py-4">
+      <LoginDialog open={showLoginPopup} onOpenChange={setShowLoginPopup} />
+      <div className="min-h-screen bg-background pb-20">
+        {/* Navigation Header */}
+        <div className="border-b bg-background/80 backdrop-blur-md sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
             <Link
               href="/tiles"
-              className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
             >
-              <ChevronLeft className="w-4 h-4 mr-1" />
-              Back to Products
+              <ChevronLeft className="w-4 h-4 mr-1" /> Back to Collection
             </Link>
           </div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 py-12">
-          {/* Main Product Section */}
+          {/* Main Product Info Section */}
           <div className="grid lg:grid-cols-2 gap-12 mb-20">
-            {/* Image Gallery */}
+            {/* Gallery Section */}
             <div className="space-y-4">
-              <div className="relative aspect-square bg-muted rounded-3xl overflow-hidden group">
+              <div className="relative aspect-square bg-muted rounded-[2rem] overflow-hidden border group shadow-sm">
                 {currentImage ? (
                   <>
                     <Image
                       src={currentImage}
                       alt={tile.name}
                       fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      className="object-cover transition-transform duration-700 group-hover:scale-110"
+                      priority
                     />
                     <button
                       onClick={() => setZoomModal(true)}
-                      className="absolute top-4 right-4 w-12 h-12 bg-white/90 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-xl hover:scale-110 transition-transform"
+                      className="absolute bottom-6 right-6 w-12 h-12 bg-background/90 backdrop-blur shadow-2xl rounded-2xl flex items-center justify-center hover:scale-110 transition-transform"
                     >
                       <ZoomIn className="w-5 h-5" />
                     </button>
@@ -242,25 +235,24 @@ export default function TilePage() {
                   </div>
                 )}
               </div>
-
-              {/* Thumbnails */}
               {tile.images?.length > 1 && (
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-4 gap-4">
                   {tile.images.map((img: any, idx: number) => (
                     <button
                       key={idx}
                       onClick={() => setActiveImg(idx)}
-                      className={`aspect-square rounded-2xl overflow-hidden border-2 transition-all ${
+                      className={cn(
+                        "aspect-square rounded-2xl overflow-hidden border-2 transition-all",
                         activeImg === idx
-                          ? "border-primary shadow-lg scale-105"
-                          : "border-border hover:border-primary/50"
-                      }`}
+                          ? "border-primary scale-95 shadow-inner"
+                          : "border-transparent opacity-70 hover:opacity-100",
+                      )}
                     >
                       <Image
                         src={img.imageUrl}
                         alt=""
-                        width={200}
-                        height={200}
+                        width={150}
+                        height={150}
                         className="w-full h-full object-cover"
                       />
                     </button>
@@ -269,362 +261,332 @@ export default function TilePage() {
               )}
             </div>
 
-            {/* Product Info */}
+            {/* Content Section */}
             <div className="lg:sticky lg:top-24 h-fit">
-              <Badge className="mb-4 text-xs">
-                {tile.category?.replace(/_/g, " ")}
-              </Badge>
+              <div className="flex items-center gap-2 mb-6">
+                <Badge
+                  variant="secondary"
+                  className="px-3 py-1 rounded-full uppercase tracking-widest text-[10px]"
+                >
+                  {tile.category?.replace(/_/g, " ")}
+                </Badge>
+                <span className="text-xs text-muted-foreground font-mono">
+                  SKU: {tile.sku}
+                </span>
+              </div>
+              <h1 className="text-5xl font-extrabold mb-4 tracking-tight">
+                {tile.name}
+              </h1>
 
-              <h1 className="text-4xl font-bold mb-4 leading-tight">{tile.name}</h1>
-
-              {/* Reviews Summary */}
+              {/* Review Summary */}
               {reviews.length > 0 && (
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="flex">
+                <div className="flex items-center gap-2 mb-8">
+                  <div className="flex text-amber-400">
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
-                        className={`w-5 h-5 ${
+                        className={cn(
+                          "w-4 h-4",
                           i < Math.round(Number(avgRating))
-                            ? "fill-amber-400 text-amber-400"
-                            : "fill-gray-200 text-gray-200"
-                        }`}
+                            ? "fill-current"
+                            : "text-muted",
+                        )}
                       />
                     ))}
                   </div>
-                  <span className="text-lg font-bold">{avgRating}</span>
-                  <span className="text-sm text-muted-foreground">
-                    ({reviews.length} {reviews.length === 1 ? "review" : "reviews"})
+                  <span className="text-sm font-bold">{avgRating}</span>
+                  <span className="text-xs text-muted-foreground">
+                    ({reviews.length} Verified Reviews)
                   </span>
                 </div>
               )}
 
-              {/* Price */}
-              <div className="flex items-baseline gap-2 mb-8 p-6 bg-gradient-to-r from-primary/10 to-primary/5 rounded-2xl border border-primary/20">
-                <span className="text-5xl font-black bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                  ₹{tile.pricePerSqft}
-                </span>
-                <span className="text-xl text-muted-foreground">/sq ft</span>
+              {/* Pricing */}
+              <div className="mb-10 flex items-center gap-4">
+                <div className="px-8 py-6 bg-primary text-primary-foreground rounded-3xl inline-flex flex-col">
+                  <span className="text-sm font-medium opacity-80">
+                    Per Sq. Ft.
+                  </span>
+                  <span className="text-4xl font-black">
+                    ₹{tile.pricePerSqft}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-muted-foreground text-sm">
+                    Box price
+                  </span>
+                  <span className="text-xl font-bold">₹{tile.pricePerBox}</span>
+                </div>
               </div>
 
               {/* Stock */}
-              <div className="mb-8">
+              <div className="mb-10">
                 {tile.stock > 0 ? (
-                  <div className="flex items-center gap-2 text-green-600 p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
-                    <CheckCircle2 className="w-5 h-5" />
-                    <span className="font-semibold">In Stock ({tile.stock} boxes available)</span>
+                  <div className="flex items-center gap-3 text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-5 py-3 rounded-2xl w-fit border border-emerald-100 dark:border-emerald-900">
+                    <CheckCircle2 className="w-5 h-5" />{" "}
+                    <span className="font-semibold text-sm">
+                      In Stock: {tile.stock} Boxes
+                    </span>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 text-red-600 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl">
-                    <X className="w-5 h-5" />
-                    <span className="font-semibold">Out of Stock</span>
+                  <div className="flex items-center gap-3 text-destructive bg-destructive/5 px-5 py-3 rounded-2xl w-fit border border-destructive/10">
+                    <X className="w-5 h-5" />{" "}
+                    <span className="font-semibold text-sm">Out of Stock</span>
                   </div>
                 )}
               </div>
 
-              {/* Description */}
-              {tile.description && tile.description !== "NOTDEFINED" && (
-                <div className="mb-8">
-                  <h3 className="font-bold text-lg mb-3">Description</h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    {tile.description}
-                  </p>
-                </div>
-              )}
-
-              {/* Specifications */}
-              <div className="border-2 rounded-2xl p-6 mb-8 bg-card">
-                <h3 className="font-bold text-lg mb-4">Specifications</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between py-2 border-b border-border/50">
-                    <span className="text-muted-foreground font-medium">Material</span>
-                    <span className="font-bold">{tile.material}</span>
+              {/* Specs Grid */}
+              <div className="grid grid-cols-2 gap-4 mb-10">
+                {[
+                  { label: "Material", val: tile.material },
+                  { label: "Finish", val: tile.finish },
+                  { label: "Size", val: tile.size },
+                  { label: "Usage", val: tile.application },
+                ].map((s) => (
+                  <div
+                    key={s.label}
+                    className="p-4 rounded-2xl bg-muted/50 border border-border/50"
+                  >
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">
+                      {s.label}
+                    </p>
+                    <p className="text-sm font-semibold">
+                      {s.val?.replace(/_/g, " ")}
+                    </p>
                   </div>
-                  <div className="flex justify-between py-2 border-b border-border/50">
-                    <span className="text-muted-foreground font-medium">Finish</span>
-                    <span className="font-bold">{tile.finish}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-border/50">
-                    <span className="text-muted-foreground font-medium">Size</span>
-                    <span className="font-bold">{tile.size}</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-muted-foreground font-medium">Price per Box</span>
-                    <span className="font-bold text-primary">₹{tile.pricePerBox}</span>
-                  </div>
-                </div>
+                ))}
               </div>
 
-              {/* Action Buttons */}
-              <div className="space-y-3">
-                <div className="flex gap-3">
-                  <Button
-                    onClick={handleAddToCart}
-                    size="lg"
-                    className="flex-1 h-14 text-base font-bold shadow-lg shadow-primary/30"
-                    disabled={cartLoading || tile.stock === 0}
-                  >
-                    {cartLoading ? (
-                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                    ) : (
-                      <ShoppingCart className="w-5 h-5 mr-2" />
-                    )}
-                    Add to Cart
-                  </Button>
-
-                  <Button
-                    onClick={handleWishlistToggle}
-                    size="lg"
-                    variant="outline"
-                    className={cn(
-                      "h-14 px-6 border-2 transition-all",
-                      inWishlist
-                        ? "bg-red-50 border-red-500 text-red-500 hover:bg-red-100"
-                        : "hover:border-red-500 hover:text-red-500"
-                    )}
-                    disabled={wishlistLoading}
-                  >
-                    {wishlistLoading ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <Heart
-                        className={`w-5 h-5 ${inWishlist ? "fill-current" : ""}`}
-                      />
-                    )}
-                  </Button>
-
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="h-14 px-6 border-2"
-                    onClick={() => {
-                      navigator.clipboard.writeText(window.location.href);
-                      toast.success("Link copied!");
-                    }}
-                  >
-                    <Share2 className="w-5 h-5" />
-                  </Button>
-                </div>
+              {/* Actions */}
+              <div className="flex gap-4">
+                <Button
+                  onClick={handleAddToCart}
+                  size="lg"
+                  className="flex-1 h-16 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20"
+                  disabled={cartLoading || tile.stock === 0}
+                >
+                  {cartLoading ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <ShoppingCart className="mr-2" />
+                  )}{" "}
+                  Add to Cart
+                </Button>
+                <Button
+                  onClick={handleWishlistToggle}
+                  variant="outline"
+                  size="lg"
+                  className={cn(
+                    "h-16 w-16 rounded-2xl border-2",
+                    inWishlist && "text-red-500 border-red-200 bg-red-50",
+                  )}
+                >
+                  {wishlistLoading ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <Heart className={cn(inWishlist && "fill-current")} />
+                  )}
+                </Button>
               </div>
             </div>
           </div>
 
           {/* Reviews Section */}
-          <div className="border-t pt-16 mb-20">
-            <h2 className="text-3xl font-bold mb-8">Customer Reviews</h2>
+          <div className="max-w-4xl mx-auto border-t pt-20">
+            <div className="flex items-center justify-between mb-12">
+              <div>
+                <h2 className="text-3xl font-bold mb-2">Community Feedback</h2>
+                <p className="text-muted-foreground">
+                  What other homeowners and architects are saying.
+                </p>
+              </div>
+              {(!user || !dbUser) && (
+                <Badge variant="outline" className="px-4 py-2 border-dashed">
+                  Login to write a review
+                </Badge>
+              )}
+            </div>
 
-            <div className="grid lg:grid-cols-3 gap-8 mb-12">
-              {/* Rating Summary */}
-              <div className="text-center p-8 border-2 rounded-3xl bg-gradient-to-br from-card to-muted/50">
-                {reviews.length > 0 ? (
-                  <>
-                    <div className="text-6xl font-black mb-3 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                      {avgRating}
-                    </div>
-                    <div className="flex justify-center gap-1 mb-3">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-6 h-6 ${
-                            i < Math.round(Number(avgRating))
-                              ? "fill-amber-400 text-amber-400"
-                              : "fill-gray-200 text-gray-200"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <p className="text-sm text-muted-foreground font-medium">
-                      Based on {reviews.length} {reviews.length === 1 ? "review" : "reviews"}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <Star className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-muted-foreground font-medium">No reviews yet</p>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Be the first to review!
-                    </p>
-                  </>
-                )}
+            <div className="grid md:grid-cols-12 gap-12">
+              <div className="md:col-span-4 space-y-6">
+                <div className="p-8 rounded-[2rem] bg-card border shadow-sm text-center">
+                  <p className="text-sm font-bold text-muted-foreground uppercase mb-2">
+                    Average Rating
+                  </p>
+                  <h3 className="text-7xl font-black mb-4">{avgRating}</h3>
+                  <div className="flex justify-center text-amber-400 mb-2">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={cn(
+                          "w-5 h-5",
+                          i < Math.round(Number(avgRating))
+                            ? "fill-current"
+                            : "text-muted",
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Based on {reviews.length} reviews
+                  </p>
+                </div>
               </div>
 
-              {/* Write Review */}
-              <div className="lg:col-span-2 p-8 border-2 rounded-3xl bg-card">
-                <h3 className="text-xl font-bold mb-6">Write a Review</h3>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">
-                      Your Name
-                    </label>
-                    <input
-                      type="text"
-                      value={reviewName}
-                      onChange={(e) => setReviewName(e.target.value)}
-                      placeholder="John Doe"
-                      className="w-full p-3 border-2 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary bg-background"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold mb-3">
-                      Rating
-                    </label>
+              <div className="md:col-span-8">
+                {user && dbUser ? (
+                  <div className="p-8 rounded-[2rem] border bg-card/50 space-y-6 mb-12">
+                    <h4 className="font-bold text-xl">Share your thoughts</h4>
                     <div className="flex gap-2">
-                      {[1, 2, 3, 4, 5].map((star) => (
+                      {[1, 2, 3, 4, 5].map((s) => (
                         <button
-                          key={star}
-                          type="button"
-                          onClick={() => setReviewRating(star)}
-                          className="transition-transform hover:scale-125"
+                          key={s}
+                          onClick={() => setReviewRating(s)}
+                          className="transition-transform active:scale-90"
                         >
                           <Star
-                            className={`w-10 h-10 ${
-                              star <= reviewRating
-                                ? "fill-amber-400 text-amber-400"
-                                : "fill-gray-200 text-gray-200"
-                            }`}
+                            className={cn(
+                              "w-8 h-8",
+                              s <= reviewRating
+                                ? "text-amber-400 fill-current"
+                                : "text-muted",
+                            )}
                           />
                         </button>
                       ))}
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">
-                      Your Review
-                    </label>
                     <textarea
                       value={reviewText}
                       onChange={(e) => setReviewText(e.target.value)}
-                      placeholder="Share your experience with this tile..."
-                      className="w-full p-4 border-2 rounded-xl min-h-[120px] focus:ring-2 focus:ring-primary focus:border-primary resize-none bg-background"
-                      maxLength={500}
+                      placeholder="Write your review here..."
+                      className="w-full bg-background rounded-2xl p-4 border-2 focus:border-primary outline-none min-h-[120px] transition-all"
                     />
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {reviewText.length}/500 characters
-                    </p>
+                    <Button
+                      onClick={handleReviewSubmit}
+                      disabled={submittingReview}
+                      className="w-full h-12 rounded-xl font-bold"
+                    >
+                      {submittingReview ? (
+                        <Loader2 className="animate-spin" />
+                      ) : (
+                        "Submit Verified Review"
+                      )}
+                    </Button>
                   </div>
+                ) : (
+                  <div className="p-12 rounded-[2rem] border-2 border-dashed border-muted flex flex-col items-center justify-center text-center space-y-4 mb-12">
+                    <MessageSquare className="w-12 h-12 text-muted" />
+                    <p className="font-medium">
+                      Sign in to share your experience with this product
+                    </p>
+                    <Button
+                      onClick={() => setShowLoginPopup(true)}
+                      variant="secondary"
+                    >
+                      Sign In Now
+                    </Button>
+                  </div>
+                )}
 
-                  <Button
-                    onClick={handleReviewSubmit}
-                    className="w-full h-12 font-bold"
-                    disabled={submittingReview || !reviewText.trim() || !reviewName.trim()}
-                  >
-                    {submittingReview ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                        Submitting...
-                      </>
-                    ) : (
-                      <>
-                        <MessageSquare className="w-5 h-5 mr-2" />
-                        Submit Review
-                      </>
-                    )}
-                  </Button>
+                <div className="space-y-6">
+                  {reviews.map((r: any) => (
+                    <div
+                      key={r.id}
+                      className="p-6 rounded-2xl bg-muted/30 border border-transparent hover:border-border transition-all"
+                    >
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
+                          {r.name?.[0]}
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm">{r.name}</p>
+                          <div className="flex text-amber-400">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={cn(
+                                  "w-3 h-3",
+                                  i < r.rating ? "fill-current" : "text-muted",
+                                )}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <span className="ml-auto text-[10px] text-muted-foreground uppercase font-bold">
+                          {new Date(r.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground text-sm leading-relaxed">
+                        {r.comment}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-
-            {/* Review List */}
-            {reviews.length > 0 && (
-              <div className="space-y-4">
-                <h3 className="text-2xl font-bold mb-6">All Reviews</h3>
-                {reviews.map((review: any) => (
-                  <div
-                    key={review.id}
-                    className="p-6 border-2 rounded-2xl bg-card hover:shadow-lg transition-shadow"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-lg">
-                        {review.name?.charAt(0).toUpperCase() || "U"}
-                      </div>
-
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <h4 className="font-bold text-lg">
-                              {review.name || "Anonymous"}
-                            </h4>
-                            <div className="flex items-center gap-2 mt-1">
-                              <div className="flex">
-                                {[...Array(5)].map((_, i) => (
-                                  <Star
-                                    key={i}
-                                    className={`w-4 h-4 ${
-                                      i < review.rating
-                                        ? "fill-amber-400 text-amber-400"
-                                        : "fill-gray-200 text-gray-200"
-                                    }`}
-                                  />
-                                ))}
-                              </div>
-                              <span className="text-sm text-muted-foreground">
-                                {new Date(review.createdAt).toLocaleDateString("en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "numeric"
-                                })}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <p className="text-muted-foreground leading-relaxed">
-                          {review.comment}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Related Products */}
           {relatedTiles.length > 0 && (
-            <div className="border-t pt-16">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-3xl font-bold">You May Also Like</h2>
-                <Link href="/tiles" className="text-sm font-medium hover:underline">
-                  View All →
-                </Link>
+            <div className="mt-32">
+              <div className="flex items-end justify-between mb-12">
+                <div>
+                  <h2 className="text-4xl font-bold tracking-tight mb-2">
+                    Inspired by your choice
+                  </h2>
+                  <p className="text-muted-foreground">
+                    Similar textures and categories you might prefer.
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  onClick={() => router.push("/tiles")}
+                  className="group"
+                >
+                  View Collection{" "}
+                  <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
+                </Button>
               </div>
 
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
                 {relatedTiles.map((item: any) => (
                   <Link
                     key={item.id}
                     href={`/tiles/${item.id}`}
-                    className="group"
+                    className="group block"
                   >
-                    <div className="border-2 rounded-2xl overflow-hidden bg-card hover:shadow-2xl hover:border-primary/50 transition-all duration-300">
-                      <div className="aspect-square bg-muted overflow-hidden">
+                    <div className="bg-card rounded-[2rem] overflow-hidden border transition-all duration-500 hover:shadow-2xl hover:-translate-y-2">
+                      <div className="aspect-[4/5] relative overflow-hidden bg-muted">
                         {item.images?.[0] ? (
                           <Image
                             src={item.images[0].imageUrl}
                             alt={item.name}
-                            width={400}
-                            height={400}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                            fill
+                            className="object-cover transition-transform duration-700 group-hover:scale-110"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <Layers className="w-12 h-12 text-muted-foreground" />
+                            <Layers className="text-muted opacity-20" />
                           </div>
                         )}
                       </div>
-                      <div className="p-5">
-                        <h3 className="font-bold text-lg mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+                      <div className="p-6">
+                        <Badge
+                          variant="outline"
+                          className="mb-3 text-[9px] uppercase font-bold text-muted-foreground border-muted-foreground/20"
+                        >
+                          {item.category?.replace(/_/g, " ")}
+                        </Badge>
+                        <h3 className="font-bold text-lg mb-1 line-clamp-1 group-hover:text-primary transition-colors">
                           {item.name}
                         </h3>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-2xl font-black text-primary">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl font-black">
                             ₹{item.pricePerSqft}
                           </span>
-                          <span className="text-sm text-muted-foreground">
-                            /sq ft
+                          <span className="text-[10px] text-muted-foreground font-bold uppercase">
+                            / sq.ft
                           </span>
                         </div>
                       </div>
@@ -640,22 +602,20 @@ export default function TilePage() {
       {/* Zoom Modal */}
       {zoomModal && currentImage && (
         <div
-          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-xl flex items-center justify-center p-8"
           onClick={() => setZoomModal(false)}
         >
-          <button
-            onClick={() => setZoomModal(false)}
-            className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors"
-          >
-            <X className="w-6 h-6 text-white" />
+          <button className="absolute top-8 right-8 w-14 h-14 bg-muted rounded-full flex items-center justify-center hover:rotate-90 transition-transform">
+            <X className="w-6 h-6" />
           </button>
-          <Image
-            src={currentImage}
-            alt={tile.name}
-            width={1200}
-            height={1200}
-            className="max-w-full max-h-full object-contain"
-          />
+          <div className="relative w-full h-full max-w-5xl">
+            <Image
+              src={currentImage}
+              alt={tile.name}
+              fill
+              className="object-contain"
+            />
+          </div>
         </div>
       )}
     </>

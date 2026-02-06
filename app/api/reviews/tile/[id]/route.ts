@@ -35,7 +35,7 @@ export async function POST(
   try {
     const { id } = await context.params;
     const body = await req.json();
-    const { rating, comment } = body;
+    const { name, rating, comment } = body;
 
     if (!rating || rating < 1 || rating > 5) {
       return NextResponse.json(
@@ -54,7 +54,7 @@ export async function POST(
     const review = await prisma.review.create({
       data: {
         tileId: id,
-        name: "Customer",
+        name: name,
         rating,
         comment: comment.trim(),
       },

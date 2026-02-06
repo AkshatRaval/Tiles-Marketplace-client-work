@@ -1,38 +1,16 @@
-"use client";
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { api } from "@/lib/api";
-import { Booking } from "@/types";
-import React, { useEffect, useState } from "react";
+import { Table, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import React from "react";
 
-const AdminBookings = () => {
-  const [bookings, setBookings] = useState<Booking[]>();
-  const [loading, setLoading] = useState(true);
-
-  const fetchBookings = async () => {
-    try {
-      const res = await api.get("/admin/bookings");
-      const data = await res.data;
-      setBookings(Array.isArray(data.bookings) ? data.bookings : []);
-    } catch (error) {
-      console.error("Failed to fetch Bookings:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  useEffect(() => {
-    fetchBookings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+const BookingPage = () => {
   return (
-    <div className="min-h-screen bg-background p-8 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-black uppercase">Incoming Booking</h1>
+    <div className="min-h-screen p-8 space-y-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-black uppercase">User Bookings</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage Bookings and meetings
+          </p>
+        </div>
       </div>
       <div className="bg-card rounded-xl border overflow-hidden">
         <Table>
@@ -42,18 +20,16 @@ const AdminBookings = () => {
               <TableHead>Phone</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Address</TableHead>
-              <TableHead>Quantity Box</TableHead>
+              <TableHead>Quantity</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Tile</TableHead>
+              <TableHead>Tiles</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
-            
-          </TableBody>
         </Table>
       </div>
     </div>
   );
 };
 
-export default AdminBookings;
+export default BookingPage;

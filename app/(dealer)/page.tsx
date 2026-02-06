@@ -139,9 +139,6 @@ const MainHome = () => {
               Browse All Tiles
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
-            <Link href="/dealers" className="text-white font-medium px-6 py-3 rounded-md hover:bg-white/10 transition-colors">
-              Become a Dealer
-            </Link>
           </div>
         </div>
       </div>

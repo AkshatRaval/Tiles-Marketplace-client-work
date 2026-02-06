@@ -16,10 +16,10 @@ export default function CartPage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const router = useRouter();
-  const { user } = useAuth();
+  const { isLoading, user } = useAuth();
 
   useEffect(() => {
-    if (!user) {
+    if (!isLoading && !user) {
       toast.error("Please login to view cart");
       router.push("/login");
       return;

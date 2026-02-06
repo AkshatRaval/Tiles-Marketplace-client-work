@@ -3,11 +3,9 @@
 import React, { useEffect, useState } from "react";
 import {
   Plus,
-  MoreVertical,
   Search,
   UploadCloud,
   FileText,
-  Eye,
   Pencil,
   Trash2,
   ChevronLeft,
@@ -31,13 +29,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 import {
   AlertDialog,
@@ -65,30 +56,43 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
+// Import constants
+import {
+  TILE_CATEGORIES,
+  TILE_FINISHES,
+  TILE_COLORS,
+  TILE_APPLICATIONS,
+  TILE_MATERIALS,
+  TILE_MOUNTS,
+  SIZE_UNITS,
+} from "@/constants/tiles-options";
+
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!;
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
-
-async function uploadToCloudinary(file: File, type: "image" | "raw") {
+const uploadToCloudinary = async (file: File, resourceType: "image" | "raw") => {
   const formData = new FormData();
   formData.append("file", file);
-  formData.append("upload_preset", UPLOAD_PRESET);
-  formData.append("folder", "tiles");
+  
+  // Change this from "ml_default_preset" to your variable
+  formData.append("upload_preset", UPLOAD_PRESET); 
 
-  const endpoint =
-    type === "image"
-      ? `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`
-      : `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`;
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/upload`,
+    {
+      method: "POST",
+      body: formData, 
+    }
+  );
 
-  const res = await fetch(endpoint, {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!res.ok) throw new Error("Cloudinary upload failed");
+  if (!res.ok) {
+    const errorData = await res.json();
+    console.error("Cloudinary Error Details:", errorData);
+    throw new Error("Cloudinary upload failed");
+  }
 
   const data = await res.json();
-  return data.secure_url as string;
-}
+  return data.secure_url;
+};
 
 const AdminTiles = () => {
   const [tiles, setTiles] = useState<any[]>([]);
@@ -103,7 +107,7 @@ const AdminTiles = () => {
     category?: string;
     material?: string;
     finish?: string;
-    size?: string;
+    mount?: string;
   }>({});
 
   const [dealers, setDealers] = useState<any[]>([]);
@@ -113,6 +117,11 @@ const AdminTiles = () => {
 
   const [fileNames, setFileNames] = useState({ photos: "", pdf: "" });
 
+  // Size builder state
+  const [sizeWidth, setSizeWidth] = useState("");
+  const [sizeHeight, setSizeHeight] = useState("");
+  const [sizeUnit, setSizeUnit] = useState("mm");
+
   const [formdata, setFormdata] = useState({
     name: "",
     sku: "",
@@ -120,6 +129,9 @@ const AdminTiles = () => {
     material: "",
     size: "",
     finish: "",
+    color: "WHITE",
+    application: "LIVING_ROOM",
+    mount: "FLOOR",
     pricePerSqft: "",
     pricePerBox: "",
     stock: "",
@@ -134,13 +146,21 @@ const AdminTiles = () => {
     fetchDealers();
   }, []);
 
+  // Auto-generate size string when width/height/unit changes
+  useEffect(() => {
+    if (sizeWidth && sizeHeight && sizeUnit) {
+      const generatedSize = `${sizeWidth}x${sizeHeight}${sizeUnit}`;
+      setFormdata((prev) => ({ ...prev, size: generatedSize }));
+    }
+  }, [sizeWidth, sizeHeight, sizeUnit]);
+
   const fetchTiles = async (
     overrides?: Partial<{
       search: string;
       category: string;
       material: string;
       finish: string;
-      size: string;
+      mount: string;
     }>,
   ) => {
     try {
@@ -162,7 +182,7 @@ const AdminTiles = () => {
       if (effectiveFilters.finish) params.finish = effectiveFilters.finish;
       if (effectiveFilters.category)
         params.category = effectiveFilters.category;
-      if (effectiveFilters.size) params.size = effectiveFilters.size;
+      if (effectiveFilters.mount) params.mount = effectiveFilters.mount;
 
       const res = await api.get("/admin/tiles", { params });
       const data = await res.data;
@@ -229,24 +249,53 @@ const AdminTiles = () => {
       }
 
       const payload = {
-        name: formdata.name || "NOTDEFINED",
-        sku: formdata.sku || "NOTDEFINED",
-        category: formdata.category.toUpperCase() || "NOTDEFINED",
-        material: formdata.material || "NOTDEFINED",
-        size: formdata.size || "NOTDEFINED",
-        finish: formdata.finish.toUpperCase(),
-        pricePerSqft: Number(formdata.pricePerSqft) || 0.0,
-        pricePerBox: Number(formdata.pricePerBox) || 0.0,
-        stock: Number(formdata.stock) || 0.0,
-        description: formdata.description || "NOTDEFINED",
-        dealerId: formdata.dealerId || "",
+        name: formdata.name,
+        sku: formdata.sku,
+        category: formdata.category,
+        material: formdata.material,
+        size: formdata.size,
+        finish: formdata.finish,
+        color: formdata.color,
+        application: formdata.application,
+        mount: formdata.mount,
+        pricePerSqft: Number(formdata.pricePerSqft) || 0,
+        pricePerBox: Number(formdata.pricePerBox) || 0,
+        stock: Number(formdata.stock) || 0,
+        description: formdata.description || null,
+        dealerId: formdata.dealerId,
         imageUrls,
-        pdfUrl,
+        pdfUrl: pdfUrl || null,
       };
 
       await api.post("/admin/tiles", payload);
       fetchTiles();
       alert("Tile created");
+      
+      // Reset form
+      setFormdata({
+        name: "",
+        sku: "",
+        category: "",
+        material: "",
+        size: "",
+        finish: "",
+        color: "WHITE",
+        application: "LIVING_ROOM",
+        mount: "FLOOR",
+        pricePerSqft: "",
+        pricePerBox: "",
+        stock: "",
+        dealerId: "",
+        description: "",
+        imageUrls: [],
+        pdfUrl: "",
+      });
+      setSizeWidth("");
+      setSizeHeight("");
+      setSizeUnit("mm");
+      setSelectedImages([]);
+      setSelectedPdf(null);
+      setFileNames({ photos: "", pdf: "" });
     } catch (e) {
       console.error(e);
       alert("Failed to create tile");
@@ -288,6 +337,9 @@ const AdminTiles = () => {
         material: editingTile.material,
         size: editingTile.size,
         finish: editingTile.finish,
+        color: editingTile.color,
+        application: editingTile.application,
+        mount: editingTile.mount,
         pricePerSqft: editingTile.pricePerSqft,
         pricePerBox: editingTile.pricePerBox,
         stock: editingTile.stock,
@@ -344,7 +396,9 @@ const AdminTiles = () => {
       );
     }
   };
+  
   const router = useRouter();
+  
   return (
     <div className="min-h-screen bg-background p-8 space-y-6">
       {/* HEADER */}
@@ -363,7 +417,7 @@ const AdminTiles = () => {
             </Button>
           </SheetTrigger>
 
-          <SheetContent side="right" className="w-full sm:max-w-xl p-0">
+          <SheetContent side="right" className="w-full sm:max-w-xl p-0 overflow-y-auto">
             <div className="flex flex-col h-full bg-background">
               <div className="p-8 border-b bg-muted/40">
                 <SheetTitle className="text-3xl font-black uppercase tracking-tight">
@@ -375,6 +429,7 @@ const AdminTiles = () => {
               </div>
 
               <form className="flex-1 overflow-y-auto p-8 space-y-10">
+                {/* Media */}
                 <section className="space-y-4">
                   <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                     Media & Documents
@@ -409,6 +464,7 @@ const AdminTiles = () => {
                   </div>
                 </section>
 
+                {/* Basic Info */}
                 <section className="space-y-6">
                   <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                     Basic Information
@@ -442,6 +498,7 @@ const AdminTiles = () => {
                   </div>
                 </section>
 
+                {/* Classification */}
                 <section className="space-y-6">
                   <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                     Classification
@@ -454,12 +511,12 @@ const AdminTiles = () => {
                         <SelectTrigger>
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="floor">Floor</SelectItem>
-                          <SelectItem value="wall">Wall</SelectItem>
-                          <SelectItem value="bathroom">Bathroom</SelectItem>
-                          <SelectItem value="kitchen">Kitchen</SelectItem>
-                          <SelectItem value="outdoor">Outdoor</SelectItem>
+                        <SelectContent className="max-h-[300px]">
+                          {TILE_CATEGORIES.map((cat) => (
+                            <SelectItem key={cat.value} value={cat.value}>
+                              {cat.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -471,9 +528,11 @@ const AdminTiles = () => {
                           <SelectValue placeholder="Select finish" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="glossy">Glossy</SelectItem>
-                          <SelectItem value="matte">Matte</SelectItem>
-                          <SelectItem value="satin">Satin</SelectItem>
+                          {TILE_FINISHES.map((finish) => (
+                            <SelectItem key={finish.value} value={finish.value}>
+                              {finish.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -481,44 +540,127 @@ const AdminTiles = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Tile Size</Label>
-                      <Select onValueChange={(v) => updateField("size", v)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select size" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="600x600">600x600</SelectItem>
-                          <SelectItem value="600x1200">600x1200</SelectItem>
-                          <SelectItem value="800x800">800x800</SelectItem>
-                          <SelectItem value="800x1600">800x1600</SelectItem>
-                          <SelectItem value="1000x1000">1000x1000</SelectItem>
-                          <SelectItem value="300x600">300x600</SelectItem>
-                          <SelectItem value="400x400">400x400</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
                       <Label>Material</Label>
                       <Select onValueChange={(v) => updateField("material", v)}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select material" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Porcelain">Porcelain</SelectItem>
-                          <SelectItem value="Ceramic">Ceramic</SelectItem>
-                          <SelectItem value="Vitrified">Vitrified</SelectItem>
-                          <SelectItem value="Marble">Marble</SelectItem>
-                          <SelectItem value="Granite">Granite</SelectItem>
-                          <SelectItem value="Natural Stone">
-                            Natural Stone
-                          </SelectItem>
+                          {TILE_MATERIALS.map((material) => (
+                            <SelectItem key={material.value} value={material.value}>
+                              {material.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Color</Label>
+                      <Select value={formdata.color} onValueChange={(v) => updateField("color", v)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TILE_COLORS.map((color) => (
+                            <SelectItem key={color.value} value={color.value}>
+                              {color.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Application</Label>
+                      <Select value={formdata.application} onValueChange={(v) => updateField("application", v)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TILE_APPLICATIONS.map((app) => (
+                            <SelectItem key={app.value} value={app.value}>
+                              {app.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Mount</Label>
+                      <Select value={formdata.mount} onValueChange={(v) => updateField("mount", v)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TILE_MOUNTS.map((mount) => (
+                            <SelectItem key={mount.value} value={mount.value}>
+                              {mount.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
                 </section>
 
+                {/* Size Builder */}
+                <section className="space-y-6">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                    Tile Size
+                  </h3>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Width</Label>
+                      <Input
+                        type="number"
+                        placeholder="e.g. 600"
+                        value={sizeWidth}
+                        onChange={(e) => setSizeWidth(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Height</Label>
+                      <Input
+                        type="number"
+                        placeholder="e.g. 600"
+                        value={sizeHeight}
+                        onChange={(e) => setSizeHeight(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Unit</Label>
+                      <Select value={sizeUnit} onValueChange={setSizeUnit}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SIZE_UNITS.map((unit) => (
+                            <SelectItem key={unit.value} value={unit.value}>
+                              {unit.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {formdata.size && (
+                    <div className="p-3 bg-muted rounded-lg">
+                      <p className="text-sm font-semibold">
+                        Generated Size: <span className="text-primary">{formdata.size}</span>
+                      </p>
+                    </div>
+                  )}
+                </section>
+
+                {/* Pricing */}
                 <section className="space-y-6">
                   <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                     Pricing
@@ -549,6 +691,7 @@ const AdminTiles = () => {
                   </div>
                 </section>
 
+                {/* Inventory & Dealer */}
                 <section className="space-y-6 pb-10">
                   <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                     Inventory & Dealer
@@ -641,47 +784,15 @@ const AdminTiles = () => {
             onValueChange={(v) => handleFilterChange("category", v)}
             value={filters.category}
           >
-            <SelectTrigger className="w-[130px]">
+            <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="FLOOR">Floor</SelectItem>
-              <SelectItem value="WALL">Wall</SelectItem>
-              <SelectItem value="BATHROOM">Bathroom</SelectItem>
-              <SelectItem value="KITCHEN">Kitchen</SelectItem>
-              <SelectItem value="OUTDOOR">Outdoor</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select
-            onValueChange={(v) => handleFilterChange("finish", v)}
-            value={filters.finish}
-          >
-            <SelectTrigger className="w-[130px]">
-              <SelectValue placeholder="Finish" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="GLOSSY">Glossy</SelectItem>
-              <SelectItem value="MATTE">Matte</SelectItem>
-              <SelectItem value="SATIN">Satin</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select
-            onValueChange={(v) => handleFilterChange("size", v)}
-            value={filters.size}
-          >
-            <SelectTrigger className="w-[130px]">
-              <SelectValue placeholder="Size" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="600x600">600x600</SelectItem>
-              <SelectItem value="600x1200">600x1200</SelectItem>
-              <SelectItem value="800x800">800x800</SelectItem>
-              <SelectItem value="800x1600">800x1600</SelectItem>
-              <SelectItem value="1000x1000">1000x1000</SelectItem>
-              <SelectItem value="300x600">300x600</SelectItem>
-              <SelectItem value="400x400">400x400</SelectItem>
+            <SelectContent className="max-h-[300px]">
+              {TILE_CATEGORIES.slice(0, 15).map((cat) => (
+                <SelectItem key={cat.value} value={cat.value}>
+                  {cat.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -693,12 +804,43 @@ const AdminTiles = () => {
               <SelectValue placeholder="Material" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Porcelain">Porcelain</SelectItem>
-              <SelectItem value="Ceramic">Ceramic</SelectItem>
-              <SelectItem value="Vitrified">Vitrified</SelectItem>
-              <SelectItem value="Marble">Marble</SelectItem>
-              <SelectItem value="Granite">Granite</SelectItem>
-              <SelectItem value="Natural Stone">Natural Stone</SelectItem>
+              {TILE_MATERIALS.map((material) => (
+                <SelectItem key={material.value} value={material.value}>
+                  {material.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            onValueChange={(v) => handleFilterChange("finish", v)}
+            value={filters.finish}
+          >
+            <SelectTrigger className="w-[130px]">
+              <SelectValue placeholder="Finish" />
+            </SelectTrigger>
+            <SelectContent>
+              {TILE_FINISHES.map((finish) => (
+                <SelectItem key={finish.value} value={finish.value}>
+                  {finish.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            onValueChange={(v) => handleFilterChange("mount", v)}
+            value={filters.mount}
+          >
+            <SelectTrigger className="w-[130px]">
+              <SelectValue placeholder="Mount" />
+            </SelectTrigger>
+            <SelectContent>
+              {TILE_MOUNTS.map((mount) => (
+                <SelectItem key={mount.value} value={mount.value}>
+                  {mount.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -809,7 +951,7 @@ const AdminTiles = () => {
         )}
       </div>
 
-      {/* DETAILS DIALOG WITH HORIZONTAL SCROLL */}
+      {/* DETAILS DIALOG */}
       <Dialog open={!!selectedTile} onOpenChange={() => setSelectedTile(null)}>
         <DialogContent className="max-w-2xl">
           {selectedTile && (
@@ -820,7 +962,6 @@ const AdminTiles = () => {
                 </DialogTitle>
               </DialogHeader>
 
-              {/* Image Carousel */}
               {selectedTile.images && selectedTile.images.length > 0 && (
                 <div className="relative w-full aspect-video bg-muted rounded-lg overflow-hidden mb-4">
                   <Image
@@ -914,7 +1055,7 @@ const AdminTiles = () => {
         </DialogContent>
       </Dialog>
 
-      {/* EDIT TILE DIALOG WITH SELECTS */}
+      {/* EDIT TILE DIALOG */}
       <Dialog open={!!editingTile} onOpenChange={() => setEditingTile(null)}>
         <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           {editingTile && (
@@ -926,7 +1067,6 @@ const AdminTiles = () => {
               </DialogHeader>
 
               <div className="space-y-6 mt-4">
-                {/* Basic Info */}
                 <section className="space-y-4">
                   <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                     Basic Information
@@ -953,6 +1093,17 @@ const AdminTiles = () => {
                   </div>
 
                   <div className="space-y-2">
+                    <Label>Size</Label>
+                    <Input
+                      value={editingTile.size}
+                      onChange={(e) =>
+                        setEditingTile({ ...editingTile, size: e.target.value })
+                      }
+                      placeholder="e.g. 600x600mm"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <Label>Description</Label>
                     <Textarea
                       value={editingTile.description || ""}
@@ -966,7 +1117,6 @@ const AdminTiles = () => {
                   </div>
                 </section>
 
-                {/* Classification */}
                 <section className="space-y-4">
                   <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                     Classification
@@ -984,56 +1134,12 @@ const AdminTiles = () => {
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="FLOOR">Floor</SelectItem>
-                          <SelectItem value="WALL">Wall</SelectItem>
-                          <SelectItem value="BATHROOM">Bathroom</SelectItem>
-                          <SelectItem value="KITCHEN">Kitchen</SelectItem>
-                          <SelectItem value="OUTDOOR">Outdoor</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Finish</Label>
-                      <Select
-                        value={editingTile.finish}
-                        onValueChange={(v) =>
-                          setEditingTile({ ...editingTile, finish: v })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="GLOSSY">Glossy</SelectItem>
-                          <SelectItem value="MATTE">Matte</SelectItem>
-                          <SelectItem value="SATIN">Satin</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Size</Label>
-                      <Select
-                        value={editingTile.size}
-                        onValueChange={(v) =>
-                          setEditingTile({ ...editingTile, size: v })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="600x600">600x600</SelectItem>
-                          <SelectItem value="600x1200">600x1200</SelectItem>
-                          <SelectItem value="800x800">800x800</SelectItem>
-                          <SelectItem value="800x1600">800x1600</SelectItem>
-                          <SelectItem value="1000x1000">1000x1000</SelectItem>
-                          <SelectItem value="300x600">300x600</SelectItem>
-                          <SelectItem value="400x400">400x400</SelectItem>
+                        <SelectContent className="max-h-[300px]">
+                          {TILE_CATEGORIES.map((cat) => (
+                            <SelectItem key={cat.value} value={cat.value}>
+                              {cat.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -1050,21 +1156,61 @@ const AdminTiles = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Porcelain">Porcelain</SelectItem>
-                          <SelectItem value="Ceramic">Ceramic</SelectItem>
-                          <SelectItem value="Vitrified">Vitrified</SelectItem>
-                          <SelectItem value="Marble">Marble</SelectItem>
-                          <SelectItem value="Granite">Granite</SelectItem>
-                          <SelectItem value="Natural Stone">
-                            Natural Stone
-                          </SelectItem>
+                          {TILE_MATERIALS.map((material) => (
+                            <SelectItem key={material.value} value={material.value}>
+                              {material.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Finish</Label>
+                      <Select
+                        value={editingTile.finish}
+                        onValueChange={(v) =>
+                          setEditingTile({ ...editingTile, finish: v })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TILE_FINISHES.map((finish) => (
+                            <SelectItem key={finish.value} value={finish.value}>
+                              {finish.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Color</Label>
+                      <Select
+                        value={editingTile.color}
+                        onValueChange={(v) =>
+                          setEditingTile({ ...editingTile, color: v })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TILE_COLORS.map((color) => (
+                            <SelectItem key={color.value} value={color.value}>
+                              {color.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
                 </section>
 
-                {/* Pricing */}
                 <section className="space-y-4">
                   <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                     Pricing
@@ -1101,7 +1247,6 @@ const AdminTiles = () => {
                   </div>
                 </section>
 
-                {/* Inventory & Dealer */}
                 <section className="space-y-4">
                   <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                     Inventory & Dealer

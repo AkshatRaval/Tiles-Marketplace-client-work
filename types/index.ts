@@ -13,9 +13,11 @@ export interface Tile {
   stock: number;
   description?: string;
   pdfUrl?: string;
+  mount: string;
+  application: string;
   isPublished: boolean;
   dealerId: string;
-  // NO dealer object - hidden from end users
+  color: string;
   images: TileImage[];
   createdAt: string;
   updatedAt: string;
