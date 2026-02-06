@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
+import { INDIAN_STATES } from "@/constants/states";
 
 const AdminDealers = () => {
   const router = useRouter();
@@ -107,7 +108,7 @@ const AdminDealers = () => {
       await api.post("/admin/dealers", payload);
       fetchDealers();
       alert("Dealer created successfully");
-      
+
       setFormdata({
         name: "",
         shopName: "",
@@ -126,12 +127,13 @@ const AdminDealers = () => {
     }
   };
 
-  const filteredDealers = dealers.filter((dealer) =>
-    dealer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    dealer.shopName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    dealer.phone.includes(searchTerm) ||
-    dealer.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    dealer.state.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredDealers = dealers.filter(
+    (dealer) =>
+      dealer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      dealer.shopName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      dealer.phone.includes(searchTerm) ||
+      dealer.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      dealer.state.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   return (
@@ -238,12 +240,11 @@ const AdminDealers = () => {
                           <SelectValue placeholder="Select state" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Andhra Pradesh">Andhra Pradesh</SelectItem>
-                          <SelectItem value="Gujarat">Gujarat</SelectItem>
-                          <SelectItem value="Maharashtra">Maharashtra</SelectItem>
-                          <SelectItem value="Karnataka">Karnataka</SelectItem>
-                          <SelectItem value="Tamil Nadu">Tamil Nadu</SelectItem>
-                          {/* Add other states */}
+                          {INDIAN_STATES.map((state) => (
+                            <SelectItem key={state} value={state}>
+                              {state}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -264,7 +265,9 @@ const AdminDealers = () => {
                       type="checkbox"
                       id="isActive"
                       checked={formdata.isActive}
-                      onChange={(e) => updateField("isActive", e.target.checked)}
+                      onChange={(e) =>
+                        updateField("isActive", e.target.checked)
+                      }
                       className="w-4 h-4 rounded border-gray-300"
                     />
                     <Label htmlFor="isActive" className="cursor-pointer">
@@ -304,7 +307,10 @@ const AdminDealers = () => {
       {/* SEARCH BAR */}
       <div className="flex gap-4 items-center">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            size={18}
+          />
           <Input
             placeholder="Search dealers by name, shop, phone, or location..."
             className="pl-10"
@@ -334,8 +340,13 @@ const AdminDealers = () => {
           <TableBody>
             {filteredDealers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  {searchTerm ? "No dealers found matching your search" : "No dealers yet"}
+                <TableCell
+                  colSpan={6}
+                  className="text-center py-8 text-muted-foreground"
+                >
+                  {searchTerm
+                    ? "No dealers found matching your search"
+                    : "No dealers yet"}
                 </TableCell>
               </TableRow>
             ) : (
@@ -352,7 +363,9 @@ const AdminDealers = () => {
                       </div>
                       <div>
                         <div className="font-bold">{dealer.name}</div>
-                        <div className="text-xs opacity-50">{dealer.shopName}</div>
+                        <div className="text-xs opacity-50">
+                          {dealer.shopName}
+                        </div>
                       </div>
                     </div>
                   </TableCell>
@@ -402,7 +415,11 @@ const AdminDealers = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => router.push(`/admin/dealers/${dealer.id}`)}>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            router.push(`/admin/dealers/${dealer.id}`)
+                          }
+                        >
                           <Eye size={14} className="mr-2" /> View Details
                         </DropdownMenuItem>
                         <DropdownMenuItem>

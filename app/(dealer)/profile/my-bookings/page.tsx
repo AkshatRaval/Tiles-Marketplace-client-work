@@ -4,100 +4,188 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Package,
   Clock,
   CheckCircle2,
   XCircle,
   Loader2,
-  Eye,
   ArrowLeft,
-  AlertCircle,
-  Phone,
-  Mail,
-  MapPin,
   Calendar,
-  User,
-  PhoneCall,
+  MapPin,
   ShoppingBag,
+  ChevronRight,
+  Download,
+  Ban,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import toast from "react-hot-toast";
+import { useAuth } from "@/components/auth-provider";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+interface BookingTile {
+  id: string;
+  tileId: string;
+  quantity: number;
+  tile: {
+    id: string;
+    name: string;
+    images: { id: string; imageUrl: string }[];
+  };
+}
+
+interface Booking {
+  id: string;
+  customerName: string;
+  phone: string;
+  email?: string;
+  city: string;
+  address?: string;
+  quantityBox: number;
+  status: string;
+  meetingDate?: string;
+  createdAt: string;
+  tiles: BookingTile[];
+}
 
 export default function MyBookings() {
   const router = useRouter();
-  const [bookings, setBookings] = useState<any[]>([]);
+  const { user, isLoading: authLoading } = useAuth();
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadBookings();
-  }, []);
+    if (!authLoading && !user) {
+      toast.error("Please login to view bookings");
+      router.push("/login");
+      return;
+    }
+
+    if (user) {
+      loadBookings();
+    }
+  }, [user, authLoading]);
 
   const loadBookings = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/bookings");
-      setBookings(response.data || []);
+      const response = await api.get(`/bookings?userId=${user?.id}`);
+      setBookings(response.data.bookings || []);
     } catch (error: any) {
       console.error("Failed to load bookings:", error);
-      if (error.response?.status === 401) {
-        toast.error("Please login to view bookings");
-        router.push("/login?redirect=/bookings");
-      }
+      toast.error("Failed to load bookings");
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusInfo = (status: string) => {
-    const statusMap = {
+  const handleCancelBooking = async (bookingId: string) => {
+    try {
+      setCancellingId(bookingId);
+      await api.patch(`/bookings/${bookingId}/cancel`);
+      toast.success("Booking cancelled successfully");
+      
+      // Update local state
+      setBookings(bookings.map(b => 
+        b.id === bookingId ? { ...b, status: 'CANCELLED' } : b
+      ));
+    } catch (error: any) {
+      console.error("Failed to cancel booking:", error);
+      toast.error(error.response?.data?.error || "Failed to cancel booking");
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  const handleDownloadTicket = async (bookingId: string) => {
+    try {
+      setDownloadingId(bookingId);
+      const response = await api.get(`/bookings/${bookingId}/ticket`, {
+        responseType: 'blob',
+      });
+
+      // Create blob link to download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `booking-${bookingId.slice(0, 8)}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Ticket downloaded successfully");
+    } catch (error: any) {
+      console.error("Failed to download ticket:", error);
+      toast.error("Failed to download ticket");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const getStatusConfig = (status: string) => {
+    const configs = {
       NEW: {
-        label: "Pending Review",
-        color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-        icon: <Clock className="w-4 h-4" />,
-        description: "Waiting for admin confirmation",
-        borderColor: "border-yellow-200 dark:border-yellow-800",
-      },
-      CONTACTED: {
-        label: "In Progress",
-        color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-        icon: <PhoneCall className="w-4 h-4" />,
-        description: "Dealer will contact you soon",
-        borderColor: "border-blue-200 dark:border-blue-800",
+        label: "Pending",
+        icon: Clock,
+        className: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800",
       },
       CONFIRMED: {
         label: "Confirmed",
-        color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-        icon: <CheckCircle2 className="w-4 h-4" />,
-        description: "Booking confirmed by dealer",
-        borderColor: "border-green-200 dark:border-green-800",
+        icon: CheckCircle2,
+        className: "bg-green-500/10 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800",
+      },
+      COMPLETE: {
+        label: "Completed",
+        icon: CheckCircle2,
+        className: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800",
       },
       CANCELLED: {
         label: "Cancelled",
-        color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-        icon: <XCircle className="w-4 h-4" />,
-        description: "Booking was cancelled",
-        borderColor: "border-red-200 dark:border-red-800",
+        icon: XCircle,
+        className: "bg-red-500/10 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800",
+      },
+      REJECTED: {
+        label: "Rejected",
+        icon: XCircle,
+        className: "bg-red-500/10 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800",
       },
     };
 
     return (
-      statusMap[status as keyof typeof statusMap] || {
+      configs[status as keyof typeof configs] || {
         label: status,
-        color: "bg-gray-100 text-gray-800",
-        icon: <Package className="w-4 h-4" />,
-        description: "",
-        borderColor: "border-gray-200",
+        icon: Package,
+        className: "bg-muted text-muted-foreground border",
       }
     );
   };
 
-  if (loading) {
+  const canCancelBooking = (status: string) => {
+    return status === 'NEW' || status === 'CONFIRMED';
+  };
+
+  const canDownloadTicket = (status: string) => {
+    return status === 'CONFIRMED' || status === 'COMPLETE';
+  };
+
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-12 h-12 animate-spin text-primary" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -105,221 +193,264 @@ export default function MyBookings() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b bg-card sticky top-0 z-40 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div className="border-b bg-background/95 backdrop-blur-sm sticky top-0 z-40">
+        <div className="max-w-4xl mx-auto px-4 py-4">
           <Link
             href="/profile"
             className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Profile
+            Back
           </Link>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        {/* Page Header */}
+      <div className="max-w-4xl mx-auto px-4 py-8 md:py-12">
+        {/* Page Title */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-3 flex items-center gap-3">
-            <ShoppingBag className="w-10 h-10 text-primary" />
-            My Bookings
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Track and manage all your tile bookings
+          <h1 className="text-3xl md:text-4xl font-bold mb-2">My Bookings</h1>
+          <p className="text-muted-foreground">
+            {bookings.length} {bookings.length === 1 ? "booking" : "bookings"}
           </p>
-        </div>
-
-        {/* Info Banner */}
-        <div className="bg-gradient-to-r from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-6 mb-8">
-          <div className="flex items-start gap-4">
-            <div className="p-2 bg-blue-500/10 rounded-lg">
-              <AlertCircle className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-blue-900 dark:text-blue-100 mb-2">
-                How Bookings Work
-              </h3>
-              <p className="text-sm text-blue-800 dark:text-blue-300 leading-relaxed">
-                After placing a booking, our team will review your request.
-                Once approved, the dealer will contact you directly to discuss
-                delivery arrangements, payment terms, and schedule. You'll
-                receive updates via email and phone.
-              </p>
-            </div>
-          </div>
         </div>
 
         {/* Bookings List */}
         {bookings.length === 0 ? (
-          <div className="text-center py-20 bg-card border rounded-3xl">
-            <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
-              <Package className="w-12 h-12 text-muted-foreground" />
+          <div className="text-center py-16 md:py-24">
+            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <ShoppingBag className="w-10 h-10 text-muted-foreground" />
             </div>
-            <h2 className="text-3xl font-bold mb-3">No Bookings Yet</h2>
-            <p className="text-muted-foreground text-lg mb-8 max-w-md mx-auto">
-              You haven't placed any bookings. Explore our tile collection to
-              find the perfect match for your project!
+            <h2 className="text-xl font-bold mb-2">No bookings yet</h2>
+            <p className="text-muted-foreground mb-6">
+              Start browsing tiles to place your first booking
             </p>
             <Link href="/tiles">
-              <Button size="lg" className="px-8">
-                Browse Tiles
-              </Button>
+              <Button>Browse Tiles</Button>
             </Link>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {bookings.map((booking) => {
-              const statusInfo = getStatusInfo(booking.status);
+              const statusConfig = getStatusConfig(booking.status);
+              const StatusIcon = statusConfig.icon;
+              const mainTile = booking.tiles[0];
 
               return (
                 <div
                   key={booking.id}
-                  className={`bg-card border-2 ${statusInfo.borderColor} rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300`}
+                  className="bg-card border rounded-xl overflow-hidden hover:shadow-md transition-shadow"
                 >
-                  <div className="p-6">
-                    <div className="flex flex-col lg:flex-row gap-6">
-                      {/* Product Image */}
-                      <Link
-                        href={`/tiles/${booking.tileId}`}
-                        className="relative w-full lg:w-40 h-40 bg-muted rounded-xl overflow-hidden shrink-0 group"
-                      >
-                        {booking.tile?.images?.[0] ? (
-                          <Image
-                            src={booking.tile.images[0].imageUrl}
-                            alt={booking.tile.name}
-                            fill
-                            className="object-cover group-hover:scale-110 transition-transform duration-500"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Package className="w-16 h-16 text-muted-foreground" />
-                          </div>
-                        )}
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                      </Link>
+                  <div className="p-4 md:p-6">
+                    {/* Header with Status and Booking ID */}
+                    <div className="flex items-center justify-between mb-4 pb-3 border-b">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${statusConfig.className}`}
+                        >
+                          <StatusIcon className="w-3.5 h-3.5" />
+                          {statusConfig.label}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          ID: {booking.id.slice(0, 8).toUpperCase()}
+                        </span>
+                      </div>
+                      
+                      {/* Meeting Date (only if CONFIRMED or COMPLETE) */}
+                      {booking.meetingDate && (booking.status === 'CONFIRMED' || booking.status === 'COMPLETE') && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>
+                            {new Date(booking.meetingDate).toLocaleDateString(
+                              "en-US",
+                              {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              }
+                            )}
+                          </span>
+                        </div>
+                      )}
+                    </div>
 
-                      {/* Booking Details */}
-                      <div className="flex-1">
-                        {/* Header */}
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
-                          <div>
+                    {/* Main Content */}
+                    <div className="flex gap-4 mb-4">
+                      {/* Image */}
+                      {mainTile && (
+                        <Link
+                          href={`/tiles/${mainTile.tileId}`}
+                          className="relative w-20 h-20 md:w-24 md:h-24 bg-muted rounded-lg overflow-hidden shrink-0 group"
+                        >
+                          {mainTile.tile.images?.[0] ? (
+                            <Image
+                              src={mainTile.tile.images[0].imageUrl}
+                              alt={mainTile.tile.name}
+                              fill
+                              className="object-cover group-hover:scale-105 transition-transform"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Package className="w-8 h-8 text-muted-foreground" />
+                            </div>
+                          )}
+                        </Link>
+                      )}
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="mb-3">
+                          {mainTile && (
                             <Link
-                              href={`/tiles/${booking.tileId}`}
+                              href={`/tiles/${mainTile.tileId}`}
                               className="hover:text-primary transition-colors"
                             >
-                              <h3 className="text-2xl font-bold mb-2">
-                                {booking.tile?.name || "Product"}
+                              <h3 className="font-bold text-lg leading-tight mb-1">
+                                {mainTile.tile.name}
                               </h3>
                             </Link>
-                            <p className="text-sm text-muted-foreground flex items-center gap-2">
-                              <span className="font-medium">Booking ID:</span>
-                              <code className="px-2 py-0.5 bg-muted rounded font-mono text-xs">
-                                {booking.id.slice(0, 8).toUpperCase()}
-                              </code>
-                            </p>
-                          </div>
-
-                          <div className="flex flex-col items-start sm:items-end gap-2">
-                            <Badge
-                              className={`${statusInfo.color} border-0 px-4 py-2 text-sm font-bold`}
-                            >
-                              <span className="flex items-center gap-2">
-                                {statusInfo.icon}
-                                {statusInfo.label}
-                              </span>
-                            </Badge>
-                            {statusInfo.description && (
-                              <p className="text-xs text-muted-foreground">
-                                {statusInfo.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Info Grid */}
-                        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
-                          <InfoBox
-                            icon={<Package size={18} />}
-                            label="Quantity"
-                            value={`${booking.quantityBox} boxes`}
-                          />
-                          <InfoBox
-                            icon={<Phone size={18} />}
-                            label="Contact"
-                            value={booking.phone}
-                          />
-                          <InfoBox
-                            icon={<MapPin size={18} />}
-                            label="Location"
-                            value={booking.city}
-                          />
-                          {booking.email && (
-                            <InfoBox
-                              icon={<Mail size={18} />}
-                              label="Email"
-                              value={booking.email}
-                            />
                           )}
-                          <InfoBox
-                            icon={<Calendar size={18} />}
-                            label="Booked On"
-                            value={new Date(
-                              booking.createdAt
-                            ).toLocaleDateString("en-US", {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            })}
-                          />
-                          {booking.tile?.dealer && (
-                            <InfoBox
-                              icon={<User size={18} />}
-                              label="Dealer"
-                              value={booking.tile.dealer.shopName}
-                            />
+                          {booking.tiles.length > 1 && (
+                            <p className="text-xs text-muted-foreground">
+                              +{booking.tiles.length - 1} more item{booking.tiles.length - 1 > 1 ? 's' : ''}
+                            </p>
                           )}
                         </div>
 
-                        {/* Address */}
-                        {booking.address && (
-                          <div className="bg-muted/50 rounded-xl p-4 mb-4 border border-border/50">
-                            <p className="text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wider">
-                              Delivery Address
-                            </p>
-                            <p className="text-sm leading-relaxed">
-                              {booking.address}
-                            </p>
+                        {/* Details Grid */}
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Package className="w-4 h-4" />
+                            <span>{booking.quantityBox} boxes</span>
                           </div>
-                        )}
-
-                        {/* Actions */}
-                        <div className="flex flex-wrap gap-3">
-                          <Link href={`/tiles/${booking.tileId}`}>
-                            <Button variant="outline">
-                              <Eye className="w-4 h-4 mr-2" />
-                              View Product
-                            </Button>
-                          </Link>
-
-                          {booking.status === "NEW" && (
-                            <Button
-                              variant="ghost"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
-                            >
-                              <XCircle className="w-4 h-4 mr-2" />
-                              Cancel Booking
-                            </Button>
-                          )}
-
-                          {booking.status === "CONFIRMED" &&
-                            booking.tile?.dealer?.phone && (
-                              <Button variant="default">
-                                <PhoneCall className="w-4 h-4 mr-2" />
-                                Contact Dealer
-                              </Button>
-                            )}
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <MapPin className="w-4 h-4" />
+                            <span className="truncate">{booking.city}</span>
+                          </div>
                         </div>
                       </div>
+                    </div>
+
+                    {/* Address (if present) */}
+                    {booking.address && (
+                      <div className="bg-muted/50 rounded-lg px-3 py-2 mb-4">
+                        <p className="text-xs font-medium text-muted-foreground mb-1">
+                          Delivery Address
+                        </p>
+                        <p className="text-sm">{booking.address}</p>
+                      </div>
+                    )}
+
+                    {/* All Items (if multiple) */}
+                    {booking.tiles.length > 1 && (
+                      <div className="bg-muted/30 rounded-lg px-3 py-2 mb-4">
+                        <p className="text-xs font-medium text-muted-foreground mb-2">
+                          All Items
+                        </p>
+                        <div className="space-y-1.5">
+                          {booking.tiles.map((bt) => (
+                            <div
+                              key={bt.id}
+                              className="flex items-center justify-between text-sm"
+                            >
+                              <span className="truncate">{bt.tile.name}</span>
+                              <span className="text-muted-foreground shrink-0 ml-2">
+                                ×{bt.quantity}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex flex-wrap gap-2">
+                      {mainTile && (
+                        <Link href={`/tiles/${mainTile.tileId}`} className="flex-1 min-w-[200px]">
+                          <Button
+                            variant="outline"
+                            className="w-full justify-between group"
+                            size="sm"
+                          >
+                            <span>View Product</span>
+                            <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                          </Button>
+                        </Link>
+                      )}
+
+                      {/* Download Ticket Button */}
+                      {canDownloadTicket(booking.status) && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleDownloadTicket(booking.id)}
+                          disabled={downloadingId === booking.id}
+                          className="flex-1 min-w-[150px]"
+                        >
+                          {downloadingId === booking.id ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Downloading...
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-4 h-4 mr-2" />
+                              Download Ticket
+                            </>
+                          )}
+                        </Button>
+                      )}
+
+                      {/* Cancel Button */}
+                      {canCancelBooking(booking.status) && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              disabled={cancellingId === booking.id}
+                              className="flex-1 min-w-[120px]"
+                            >
+                              {cancellingId === booking.id ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Cancelling...
+                                </>
+                              ) : (
+                                <>
+                                  <Ban className="w-4 h-4 mr-2" />
+                                  Cancel
+                                </>
+                              )}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Cancel Booking?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to cancel this booking? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>No, keep it</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleCancelBooking(booking.id)}
+                                className="bg-destructive hover:bg-destructive/90"
+                              >
+                                Yes, cancel booking
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+
+                    {/* Booked Date (footer) */}
+                    <div className="mt-4 pt-3 border-t text-xs text-muted-foreground">
+                      Booked on {new Date(booking.createdAt).toLocaleDateString("en-US", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
                     </div>
                   </div>
                 </div>
@@ -331,24 +462,3 @@ export default function MyBookings() {
     </div>
   );
 }
-
-// Helper Component
-const InfoBox = ({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) => (
-  <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/30">
-    <div className="p-2 bg-background rounded-lg text-muted-foreground">
-      {icon}
-    </div>
-    <div>
-      <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
-      <p className="font-semibold text-sm leading-tight">{value}</p>
-    </div>
-  </div>
-);

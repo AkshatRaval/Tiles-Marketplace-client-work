@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Plus,
   Users,
@@ -78,7 +78,7 @@ const Dashboard = () => {
     <section className="w-full space-y-4 md:space-y-6 p-3 md:p-6 bg-background min-h-screen">
       {/* 1. THE HERO COMMAND CENTER */}
       <div className="relative overflow-hidden bg-secondary/40 border border-border/60 rounded-[1.5rem] md:rounded-[2.5rem] p-5 md:p-8 shadow-2xl">
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-primary/10 rounded-full blur-3xl -z-0" />
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-primary/10 rounded-full blur-3xl z-0" />
 
         <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-6 md:mb-10">
           <div className="space-y-2">
@@ -97,7 +97,7 @@ const Dashboard = () => {
           </div>
 
           <div className="flex w-full md:w-auto gap-3 md:gap-4">
-            <div className="flex-1 md:flex-none bg-background/60 backdrop-blur-md p-3 md:p-5 rounded-2xl md:rounded-3xl border border-border min-w-0 md:min-w-[140px]">
+            <div className="flex-1 md:flex-none bg-background/60 backdrop-blur-md p-3 md:p-5 rounded-2xl md:rounded-3xl border border-border min-w-0 md:min-w-35">
               <p className="text-[9px] md:text-[10px] uppercase font-bold text-muted-foreground mb-1">
                 Conversion
               </p>
@@ -116,7 +116,7 @@ const Dashboard = () => {
                 />
               </div>
             </div>
-            <div className="bg-background/60 backdrop-blur-md p-3 md:p-5 rounded-2xl md:rounded-3xl border border-border min-w-0 md:min-w-[140px]">
+            <div className="bg-background/60 backdrop-blur-md p-3 md:p-5 rounded-2xl md:rounded-3xl border border-border min-w-0 md:min-w-35">
               <p className="text-[9px] md:text-[10px] uppercase font-bold text-muted-foreground mb-1">
                 Active Now
               </p>
@@ -130,7 +130,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="h-[250px] md:h-[380px] w-full flex items-center justify-center">
+        <div className="h-62.5 md:h-95 w-full flex items-center justify-center">
           {data.userGrowthData && data.userGrowthData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
@@ -191,14 +191,14 @@ const Dashboard = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
         {/* PIE CHART */}
-        <div className="md:col-span-12 lg:col-span-4 bg-secondary/30 border border-border/40 p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] h-auto min-h-[350px] md:h-[420px] flex flex-col">
+        <div className="md:col-span-12 lg:col-span-4 bg-secondary/30 border border-border/40 p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] h-auto min-h-87.5 md:h-105 flex flex-col">
           <div className="flex justify-between items-center mb-4 md:mb-6">
             <h3 className="font-black text-sm md:text-lg uppercase tracking-tight italic">
               Bookings
             </h3>
             <PieIcon className="text-primary" size={20} />
           </div>
-          <div className="flex-1 min-h-[200px] flex items-center justify-center">
+          <div className="flex-1 min-h-50 flex items-center justify-center">
             {data.bookingStats && data.bookingStats.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -227,14 +227,14 @@ const Dashboard = () => {
         </div>
 
         {/* CITY RADIAL CHART */}
-        <div className="md:col-span-6 lg:col-span-4 bg-secondary/30 border border-border/40 p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] h-auto min-h-[350px] md:h-[420px] flex flex-col relative">
+        <div className="md:col-span-6 lg:col-span-4 bg-secondary/30 border border-border/40 p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] h-auto min-h-87.5 md:h-105 flex flex-col relative">
           <div className="flex justify-between items-center mb-2">
             <h3 className="font-black text-sm md:text-lg uppercase tracking-tight italic">
               Hubs
             </h3>
             <Globe className="text-primary" size={20} />
           </div>
-          <div className="flex-1 min-h-[200px] flex items-center justify-center">
+          <div className="flex-1 min-h-50 flex items-center justify-center">
             {data.cityRadialData && data.cityRadialData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <RadialBarChart
@@ -275,10 +275,10 @@ const Dashboard = () => {
         </div>
 
         {/* CTA BLOCK */}
-        <div className="md:col-span-6 lg:col-span-4 group min-h-[250px] md:h-[420px]">
+        <div className="md:col-span-6 lg:col-span-4 group min-h-62.5 md:h-105">
           <Link href="/admin/tiles" className="h-full w-full block">
             <div className="h-full bg-primary rounded-[1.5rem] md:rounded-[2rem] p-8 md:p-10 flex flex-col items-center justify-center text-primary-foreground relative overflow-hidden transition-all active:scale-95 duration-200">
-              <div className="absolute inset-0 border-[15px] md:border-[20px] border-white/5 rounded-[1.5rem] md:rounded-[2rem]" />
+              <div className="absolute inset-0 border-15 md:border-20 border-white/5 rounded-[1.5rem] md:rounded-[2rem]" />
               <div className="relative z-10 bg-white text-primary p-4 md:p-7 rounded-2xl md:rounded-[2.5rem] shadow-2xl mb-4 md:mb-8 flex items-center justify-center">
                 <Plus size={32} strokeWidth={4} />
               </div>
@@ -286,7 +286,7 @@ const Dashboard = () => {
                 <h3 className="text-xl md:text-3xl font-black uppercase tracking-tighter italic">
                   List New Tile
                 </h3>
-                <p className="text-xs md:text-sm text-primary-foreground/80 font-medium max-w-[180px] md:max-w-[200px] mx-auto leading-tight">
+                <p className="text-xs md:text-sm text-primary-foreground/80 font-medium max-w-45 md:max-w-50 mx-auto leading-tight">
                   Sync inventory with your PostgreSQL database.
                 </p>
               </div>

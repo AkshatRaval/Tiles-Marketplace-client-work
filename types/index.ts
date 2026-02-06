@@ -48,22 +48,6 @@ export interface WishlistItem {
   createdAt: string;
 }
 
-export interface Booking {
-  id: string;
-  customerName: string;
-  phone: string;
-  email?: string;
-  city: string;
-  address?: string;
-  quantityBox: number;
-  status: "NEW" | "CONTACTED" | "CONFIRMED" | "CANCELLED";
-  tileId: string;
-  tile: Tile;
-  userId?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface User {
   id: string;
   name: string;
@@ -80,3 +64,31 @@ export interface User {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface Booking {
+  id: string;
+  customerName: string;
+  phone: string;
+  email?: string;
+  city: string;
+  address?: string;
+  quantityBox: number;
+  meetingDate?: string;
+  adminNotes?: string;
+  status: BookingStatus;
+  userId?: string;
+  createdAt: string;
+  updatedAt: string;
+  tiles: BookingTile[];
+  user?: User;
+}
+
+export interface BookingTile {
+  id: string;
+  bookingId: string;
+  tileId: string;
+  quantity: number;
+  tile: Tile;
+}
+
+export type BookingStatus = "NEW" | "CONFIRMED" | "CANCELLED" | "COMPLETE" | "REJECTED";

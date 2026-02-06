@@ -2,45 +2,44 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 // GET - Fetch user's bookings
-export async function GET(req: Request) {
+export const GET = async (req: Request) => {
   try {
-    // Try multiple auth methods
-    let userId = req.headers.get("x-user-id");
-    
-    // Fallback: try to get from auth token
-    if (!userId) {
-      const authHeader = req.headers.get("authorization");
-      if (authHeader?.startsWith("Bearer ")) {
-        // Here you would decode JWT and get userId
-        // userId = decodeToken(authHeader.substring(7)).userId;
-      }
-    }
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized - Please login" },
-        { status: 401 }
-      );
+    // Build where clause
+    const where: any = {};
+    if (userId) {
+      where.userId = userId;
     }
 
     const bookings = await prisma.booking.findMany({
-      where: {
-        userId: userId,
-      },
+      where,
       include: {
-        tile: {
+        tiles: {
           include: {
-            images: {
-              take: 1,
-            },
-            dealer: {
-              select: {
-                name: true,
-                shopName: true,
-                city: true,
-                phone: true,
+            tile: {
+              include: {
+                images: { take: 1 },
+                dealer: {
+                  select: {
+                    id: true,
+                    name: true,
+                    shopName: true,
+                    phone: true,
+                    city: true,
+                  },
+                },
               },
             },
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
           },
         },
       },
@@ -49,51 +48,40 @@ export async function GET(req: Request) {
       },
     });
 
-    return NextResponse.json(bookings);
+    return NextResponse.json({ bookings }, { status: 200 });
   } catch (error: any) {
-    console.error("BOOKINGS_GET_ERROR:", error);
+    console.error("FETCH_BOOKINGS_ERROR:", error);
     return NextResponse.json(
       { error: "Failed to fetch bookings", details: error.message },
       { status: 500 }
     );
   }
-}
+};
 
-// POST - Create new booking
-export async function POST(req: Request) {
+// POST - Create booking
+export const POST = async (req: Request) => {
   try {
     const body = await req.json();
-    
-    const {
-      userId, // Accept from body for flexibility
-      tileId,
-      customerName,
-      phone,
-      email,
-      city,
-      address,
-      quantityBox,
-    } = body;
 
-    // Validation
-    if (!tileId || !customerName || !phone || !city || !quantityBox) {
+    // Validate required fields
+    if (!body.customerName || !body.phone || !body.city) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Customer name, phone, and city are required" },
         { status: 400 }
       );
     }
 
-    if (quantityBox < 1) {
+    if (!body.tileId) {
       return NextResponse.json(
-        { error: "Quantity must be at least 1" },
+        { error: "Tile ID is required" },
         { status: 400 }
       );
     }
 
-    // Check if tile exists and has stock
+    // Verify tile exists
     const tile = await prisma.tile.findUnique({
-      where: { id: tileId },
-      select: { stock: true, name: true },
+      where: { id: body.tileId },
+      select: { id: true },
     });
 
     if (!tile) {
@@ -103,48 +91,59 @@ export async function POST(req: Request) {
       );
     }
 
-    if (tile.stock < quantityBox) {
-      return NextResponse.json(
-        { error: `Only ${tile.stock} boxes available` },
-        { status: 400 }
-      );
-    }
-
-    // Create booking
+    // Create booking with BookingTile relation
     const booking = await prisma.booking.create({
       data: {
-        tileId: tileId,
-        customerName: customerName,
-        phone: phone,
-        email: email || null,
-        city: city,
-        address: address || null,
-        quantityBox: quantityBox,
+        customerName: body.customerName,
+        phone: body.phone,
+        email: body.email || null,
+        address: body.address || null,
+        city: body.city,
+        quantityBox: body.quantityBox || 1,
         status: "NEW",
-        userId: userId || null,
+        userId: body.userId || null,
+        tiles: {
+          create: {
+            tileId: body.tileId,
+            quantity: body.quantityBox || 1,
+          },
+        },
       },
       include: {
-        tile: {
+        tiles: {
           include: {
-            images: { take: 1 },
-            dealer: {
-              select: {
-                name: true,
-                shopName: true,
-                phone: true,
+            tile: {
+              include: {
+                images: { take: 1 },
+                dealer: {
+                  select: {
+                    name: true,
+                    shopName: true,
+                    phone: true,
+                  },
+                },
               },
             },
           },
         },
+        user: true,
       },
     });
 
     return NextResponse.json(booking, { status: 201 });
   } catch (error: any) {
-    console.error("BOOKING_CREATE_ERROR:", error);
+    console.error("CREATE_BOOKING_ERROR:", error);
+
+    if (error.code === "P2002") {
+      return NextResponse.json(
+        { error: "A booking already exists." },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { error: "Failed to create booking", details: error.message },
       { status: 500 }
     );
   }
-}
+};

@@ -48,7 +48,7 @@ model Tile {
   dealerId     String
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
-  bookings     Booking[]
+  bookingTiles BookingTile[]
   cartItems    CartItem[]
   reviews      Review[]
   dealer       Dealer          @relation(fields: [dealerId], references: [id])
@@ -125,14 +125,24 @@ model Booking {
   meetingDate  DateTime?
   adminNotes   String?
   status       BookingStatus @default(NEW)
-  tileId       String
   userId       String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
-  tile         Tile          @relation(fields: [tileId], references: [id])
   user         EndUser?      @relation(fields: [userId], references: [id])
+  tiles        BookingTile[]
 
   @@index([status])
+}
+
+model BookingTile {
+  id        String  @id @default(uuid())
+  bookingId String
+  tileId    String
+  quantity  Int     @default(1)
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  tile      Tile    @relation(fields: [tileId], references: [id])
+
+  @@index([bookingId])
   @@index([tileId])
 }
 
@@ -313,6 +323,6 @@ enum BookingStatus {
   NEW
   CONFIRMED
   CANCELLED
-  COMPELETE
+  COMPLETE
   REJECTED
 }

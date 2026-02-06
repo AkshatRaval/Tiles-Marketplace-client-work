@@ -4,7 +4,15 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
-import { Heart, Menu, Sun, Moon, ShoppingCart, User } from "lucide-react";
+import {
+  Heart,
+  Menu,
+  Sun,
+  Moon,
+  ShoppingCart,
+  User,
+  Ticket,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./auth-provider";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -30,8 +38,8 @@ const Navbar = () => {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [cartCount, setCartCount] = useState<any>(0); // Example cart count
-  const [wishlistCount, setWishlistCount] = useState<any>(0); // Example wishlist count
+  const [cartCount, setCartCount] = useState<any>(0);
+  const [wishlistCount, setWishlistCount] = useState<any>(0);
   const isMobile = useIsMobile();
   const { isLoading, user, signOut } = useAuth();
   const router = useRouter();
@@ -55,19 +63,18 @@ const Navbar = () => {
     try {
       const [cartRes, wishlistRes] = await Promise.all([
         api.get("/cart"),
-        api.get("/wishlist")
+        api.get("/wishlist"),
       ]);
       setCartCount(cartRes.data.totalItems);
       setWishlistCount(wishlistRes.data.totalItems);
     } catch (error) {
-      console.log(error)
+      console.log(error);
     }
-  }
+  };
 
   useEffect(() => {
     fetchCount();
   }, []);
-  
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
@@ -188,8 +195,9 @@ const Navbar = () => {
                       <User className="mr-2 h-4 w-4" />
                       Profile
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push("/orders")}>
-                      Orders
+                    <DropdownMenuItem onClick={() => router.push("/profile/my-bookings")}>
+                      <Ticket className="mr-2 h-4 w-4" />
+                      Bookings
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => router.push("/wishlist")}>
                       <Heart className="mr-2 h-4 w-4" />
@@ -314,9 +322,10 @@ const Navbar = () => {
                       <Button
                         variant="ghost"
                         className="justify-start h-12"
-                        onClick={() => handleNavigation("/orders")}
+                        onClick={() => handleNavigation("/profile/my-bookings")}
                       >
-                        Orders
+                        <Ticket />
+                        Bookings
                       </Button>
                       <div className="border-t my-2" />
                       <Button

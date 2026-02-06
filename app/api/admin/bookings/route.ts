@@ -15,13 +15,37 @@ export async function GET(req: Request) {
         ],
       },
       include: {
-        tile: { include: { images: { take: 1 } } },
+        tiles: {
+          include: {
+            tile: {
+              include: {
+                images: { take: 1 },
+                dealer: {
+                  select: {
+                    name: true,
+                    shopName: true,
+                    phone: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json({ bookings });
   } catch (error: any) {
+    console.error("ADMIN_FETCH_BOOKINGS_ERROR:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
