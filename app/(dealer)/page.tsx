@@ -99,7 +99,7 @@ const MainHome = () => {
   return (
     <div className="bg-background">
       {/* Hero Section */}
-      <div className="relative w-full h-[600px] flex items-center">
+      <div className="relative w-full h-150 flex items-center">
         <Image
           src="/heroPage.jpg"
           alt="Premium kitchen with marble tiles"
