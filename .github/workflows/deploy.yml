@@ -3,7 +3,7 @@ name: Deploy to Hostinger
 on:
   push:
     branches:
-      - main  # runs every time you push to main
+      - main
 
 jobs:
   build-and-deploy:
@@ -19,7 +19,10 @@ jobs:
           node-version: 18
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          rm -f package-lock.json
+          rm -rf node_modules
+          npm install
 
       - name: Build
         run: npm run build
@@ -30,5 +33,5 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./out/       # the static export folder
-          server-dir: /public_html/  # your Hostinger root
+          local-dir: ./out/
+          server-dir: /public_html/
