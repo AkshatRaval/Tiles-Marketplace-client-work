@@ -194,7 +194,7 @@ export async function DELETE(
       where: { id },
       include: {
         cartItems: true,
-        bookings: true,
+        bookingTiles: true,
         reviews: true,
         wishlist: true,
       },
@@ -215,7 +215,7 @@ export async function DELETE(
       );
     }
 
-    if (tile.bookings.length > 0) {
+    if (tile.bookingTiles.length > 0) {
       return NextResponse.json(
         { error: "Cannot delete tile that has bookings" },
         { status: 400 }

@@ -1,13 +1,9 @@
-"use server";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-interface UserContext {
-    params: {
-        id: string
-    }
-}
-
-export const GET = async (_request: Request, context: UserContext)=>{
-    const { id } = context.params;
-    return NextResponse.json({id: id}, {status: 200})
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  return NextResponse.json({ id }, { status: 200 });
 }

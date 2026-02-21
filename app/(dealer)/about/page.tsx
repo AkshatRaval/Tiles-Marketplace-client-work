@@ -38,7 +38,7 @@ const About = () => {
           </Badge>
           <div className="text-center w-full max-w-3xl space-y-2">
             <h1 className="text-4xl md:text-7xl font-bold font-serif">
-              About TileHub
+              About BookMyTile
             </h1>
             <p className="text-sm md:text-xl text-muted-foreground">
               We're building India's most trusted tile marketplace — connecting
@@ -60,11 +60,11 @@ const About = () => {
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3 mt-10 w-full max-w-5xl">
           {whatDrivesUs.map((item) => (
             <Card key={item.id} className="items-center border-primary/50">
-                <div className="p-3 rounded-lg bg-accent text-accent-foreground"><item.icon /></div>
-                <CardContent className="text-center space-y-2">
-                    <h1 className="text-xl font-bold font-sans">{item.title}</h1>
-                    <p className="text-sm text-muted-foreground">{item.desc}</p>
-                </CardContent>
+              <div className="p-3 rounded-lg bg-accent text-accent-foreground"><item.icon /></div>
+              <CardContent className="text-center space-y-2">
+                <h1 className="text-xl font-bold font-sans">{item.title}</h1>
+                <p className="text-sm text-muted-foreground">{item.desc}</p>
+              </CardContent>
             </Card>
           ))}
         </div>

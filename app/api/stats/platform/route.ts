@@ -5,8 +5,8 @@ export async function GET() {
   try {
     const [totalTiles, totalDealers, totalOrders] = await Promise.all([
       prisma.tile.count(),
-      prisma.dealer.count(), 
-      prisma.order.count(),
+      prisma.dealer.count(),
+      prisma.booking.count(),
     ]);
 
     return NextResponse.json({

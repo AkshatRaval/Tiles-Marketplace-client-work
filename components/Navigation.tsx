@@ -81,10 +81,10 @@ const Navbar = () => {
       <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2 group">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm shadow-sm transition-transform group-hover:scale-105">
-            TH
+            BMT
           </div>
           <span className="text-lg font-bold tracking-tight hidden sm:inline-block">
-            TileHub
+            BookMyTile
           </span>
         </Link>
 

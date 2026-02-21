@@ -172,7 +172,7 @@ const Onboarding = () => {
             <div className="flex items-center gap-2 mb-8">
               <Sparkles className="text-primary w-6 h-6" />
               <span className="font-bold text-xl tracking-tight uppercase">
-                TileHub
+                BookMyTile
               </span>
             </div>
 
@@ -194,9 +194,8 @@ const Onboarding = () => {
               {[1, 2, 3, 4].map((num) => (
                 <div
                   key={num}
-                  className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${
-                    step >= num ? "bg-primary" : "bg-white/20"
-                  }`}
+                  className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${step >= num ? "bg-primary" : "bg-white/20"
+                    }`}
                 />
               ))}
             </div>
@@ -377,18 +376,16 @@ const Onboarding = () => {
                         onClick={() =>
                           setFormData({ ...formData, duty: role.id })
                         }
-                        className={`flex items-start gap-4 p-4 rounded-xl border-2 transition-all text-left ${
-                          formData.duty === role.id
+                        className={`flex items-start gap-4 p-4 rounded-xl border-2 transition-all text-left ${formData.duty === role.id
                             ? "border-primary bg-primary/5 shadow-sm"
                             : "border-border hover:border-primary/50 hover:bg-accent/50"
-                        }`}
+                          }`}
                       >
                         <div
-                          className={`p-2.5 rounded-lg ${
-                            formData.duty === role.id
+                          className={`p-2.5 rounded-lg ${formData.duty === role.id
                               ? "bg-primary/10"
                               : "bg-muted"
-                          }`}
+                            }`}
                         >
                           <role.icon
                             className={
@@ -422,11 +419,10 @@ const Onboarding = () => {
                       <button
                         key={item}
                         onClick={() => toggleInterest(item)}
-                        className={`p-3 rounded-lg border text-xs font-medium transition-all ${
-                          formData.lookingFor.includes(item)
+                        className={`p-3 rounded-lg border text-xs font-medium transition-all ${formData.lookingFor.includes(item)
                             ? "bg-primary text-primary-foreground border-primary shadow-sm"
                             : "bg-card hover:bg-accent border-border hover:border-primary/50"
-                        }`}
+                          }`}
                       >
                         {item}
                       </button>
@@ -445,7 +441,7 @@ const Onboarding = () => {
                 <div className="space-y-2">
                   <h2 className="text-3xl font-bold">One last thing!</h2>
                   <p className="text-muted-foreground">
-                    How did you hear about TileHub?
+                    How did you hear about BookMyTile?
                   </p>
                 </div>
 
