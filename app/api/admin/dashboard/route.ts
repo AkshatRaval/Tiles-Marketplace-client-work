@@ -34,18 +34,18 @@ export const GET = async (req: Request) => {
     });
 
     const totalUsersCount = await prisma.endUser.count();
-    
-    const conversionRate = totalUsersCount > 0 
-      ? Math.round((usersWithBookings.length / totalUsersCount) * 100) 
+
+    const conversionRate = totalUsersCount > 0
+      ? Math.round((usersWithBookings.length / totalUsersCount) * 100)
       : 0;
 
     // 5. CALCULATION: Active Now (Users joined in last 24h)
     const oneDayAgo = new Date();
     oneDayAgo.setHours(oneDayAgo.getHours() - 24);
-    const activeNow = users.filter(u => new Date(u.createdAt) >= oneDayAgo).length;
+    const activeNow = users.filter((u: any) => new Date(u.createdAt) >= oneDayAgo).length;
 
     // 6. Format City Data
-    const cityRadialData = cityStats.map((c, i) => ({
+    const cityRadialData = cityStats.map((c: any, i: number) => ({
       name: c.city || "Unknown",
       count: c._count.id,
       fill: ["#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe"][i],
@@ -56,13 +56,13 @@ export const GET = async (req: Request) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
       const dayName = days[d.getDay()];
-      
+
       const count = users.filter(
-        (u) => new Date(u.createdAt).toDateString() === d.toDateString()
+        (u: any) => new Date(u.createdAt).toDateString() === d.toDateString()
       ).length;
 
-      return { 
-        date: dayName, 
+      return {
+        date: dayName,
         users: count,
       };
     });

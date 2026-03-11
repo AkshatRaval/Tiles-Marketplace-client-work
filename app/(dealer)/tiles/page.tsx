@@ -184,7 +184,7 @@ const TilesContent = () => {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="aspect-[4/5] bg-muted animate-pulse rounded-2xl" />
+            <div key={i} className="aspect-4/5 bg-muted animate-pulse rounded-2xl" />
           ))}
         </div>
       ) : (
