@@ -70,7 +70,7 @@ export const GET = async (req: Request) => {
     return NextResponse.json({
       userGrowthData,
       cityRadialData,
-      bookingStats: bookingStats.map((b) => ({
+      bookingStats: bookingStats.map((b: any) => ({
         name: b.status,
         value: b._count.id,
       })),

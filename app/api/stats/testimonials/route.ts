@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     });
 
     // Transform reviews into testimonial format
-    const testimonials = reviews.map((review) => ({
+    const testimonials = reviews.map((review: any) => ({
       id: review.id,
       name: review.name,
       role: "Customer", // Or you can make this dynamic

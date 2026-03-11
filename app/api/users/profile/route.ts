@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 async function getUserIdFromAuth(req: Request) {
   let userId = req.headers.get("x-user-id");
-  
+
   if (!userId) {
     const authHeader = req.headers.get("authorization");
     if (authHeader && authHeader.startsWith("Bearer ")) {
@@ -13,7 +13,7 @@ async function getUserIdFromAuth(req: Request) {
       // userId = decodeToken(token).userId;
     }
   }
-  
+
   return userId;
 }
 
@@ -71,7 +71,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    
+
     const {
       userId, // Accept userId from body for onboarding
       name,
@@ -186,7 +186,7 @@ export async function PATCH(req: Request) {
 
     // Remove undefined fields
     const cleanData = Object.fromEntries(
-      Object.entries(updateData).filter(([_, v]) => v !== undefined)
+      Object.entries(updateData).filter(([_, v]: [any, any]) => v !== undefined)
     );
 
     const updatedUser = await prisma.endUser.update({

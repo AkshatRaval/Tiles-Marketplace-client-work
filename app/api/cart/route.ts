@@ -49,9 +49,9 @@ export async function GET(req: Request) {
       });
     }
 
-    const totalItems = cart.items.reduce((sum, item) => sum + item.quantityBox, 0);
+    const totalItems = cart.items.reduce((sum: any, item: any) => sum + item.quantityBox, 0);
     const totalPrice = cart.items.reduce(
-      (sum, item) => sum + item.tile.pricePerBox * item.quantityBox,
+      (sum: any, item: any) => sum + item.tile.pricePerBox * item.quantityBox,
       0
     );
 

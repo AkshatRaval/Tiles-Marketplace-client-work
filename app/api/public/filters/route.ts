@@ -29,22 +29,22 @@ export async function GET() {
 
     // Format the data into clean arrays of strings or objects
     const filters = {
-      categories: catData.map((item) => ({
+      categories: catData.map((item: any) => ({
         value: item.category,
         label: item.category.replace(/_/g, " "),
         count: item._count.category,
       })),
-      sizes: sizeData.map((item) => ({
+      sizes: sizeData.map((item: any) => ({
         value: item.size,
         label: item.size,
         count: item._count.size,
       })),
-      finishes: finishData.map((item) => ({
+      finishes: finishData.map((item: any) => ({
         value: item.finish,
         label: item.finish.replace(/_/g, " "),
         count: item._count.finish,
       })),
-      applications: appData.map((item) => ({
+      applications: appData.map((item: any) => ({
         value: item.application,
         label: item.application.replace(/_/g, " "),
         count: item._count.application,

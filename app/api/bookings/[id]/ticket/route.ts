@@ -34,7 +34,7 @@ export async function GET(
 
     // Calculate totals
     const totalAmount = booking.tiles.reduce(
-      (sum, bt) => sum + bt.tile.pricePerBox * bt.quantity,
+      (sum: any, bt: any) => sum + bt.tile.pricePerBox * bt.quantity,
       0
     );
 
@@ -556,10 +556,10 @@ export async function GET(
           <div class="invoice-label">Invoice</div>
           <div class="invoice-number">#${booking.id.slice(0, 8).toUpperCase()}</div>
           <div class="invoice-date">${new Date(booking.createdAt).toLocaleDateString("en-US", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}</div>
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    })}</div>
         </div>
       </div>
 
@@ -575,25 +575,24 @@ export async function GET(
             <div class="card-row">
               <span class="card-row-label">Date Issued</span>
               <span class="card-row-value">${new Date(booking.createdAt).toLocaleDateString("en-US", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}</span>
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })}</span>
             </div>
-            ${
-              booking.meetingDate
-                ? `
+            ${booking.meetingDate
+        ? `
             <div class="card-row">
               <span class="card-row-label">Meeting Date</span>
               <span class="card-row-value">${new Date(booking.meetingDate).toLocaleDateString("en-US", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}</span>
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })}</span>
             </div>
             `
-                : ""
-            }
+        : ""
+      }
           </div>
         </div>
 
@@ -634,8 +633,8 @@ export async function GET(
             </thead>
             <tbody>
               ${booking.tiles
-                .map(
-                  (bt, index) => `
+        .map(
+          (bt: any, index: number) => `
                 <tr>
                   <td class="item-number">${index + 1}</td>
                   <td class="item-name">${bt.tile.name}</td>
@@ -644,8 +643,8 @@ export async function GET(
                   <td class="item-amount">₹${(bt.tile.pricePerBox * bt.quantity).toLocaleString("en-IN")}</td>
                 </tr>
               `
-                )
-                .join("")}
+        )
+        .join("")}
             </tbody>
           </table>
         </div>
