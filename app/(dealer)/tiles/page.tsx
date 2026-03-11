@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { Search, ChevronDown, X, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import { TileCard } from "@/components/card/TilesCard";
 import { api } from "@/lib/api";
 import { useSearchParams } from "next/navigation";
 
-// Matches the keys returned by your new backend route
+// Interfaces
 interface FilterOption {
   value: string;
   label: string;
@@ -31,30 +31,27 @@ interface BackendFilters {
   applications: FilterOption[];
 }
 
-const AllTiles = () => {
+// 1. The main logic moved into a sub-component
+const TilesContent = () => {
   const searchParams = useSearchParams();
   const [tiles, setTiles] = useState<Tile[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [totalCount, setTotalCount] = useState(0);
   
-  // State for dynamic filters from backend
   const [availableFilters, setAvailableFilters] = useState<BackendFilters | null>(null);
-  
-  // State for user selection
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchFilterMetadata();
     
-    // Sync URL params to state on initial load
     const params: Record<string, string> = {};
     searchParams.forEach((value, key) => {
       if (key === "search") setSearchQuery(value);
       else params[key] = value;
     });
     setSelectedFilters(params);
-  }, []);
+  }, [searchParams]); // Added searchParams to dependency array
 
   useEffect(() => {
     fetchTiles();
@@ -62,7 +59,7 @@ const AllTiles = () => {
 
   const fetchFilterMetadata = async () => {
     try {
-      const res = await api.get("/public/filters"); // Your new API route
+      const res = await api.get("/public/filters");
       setAvailableFilters(res.data);
     } catch (err) {
       console.error("Failed to fetch filter metadata:", err);
@@ -104,7 +101,6 @@ const AllTiles = () => {
     setSearchQuery("");
   };
 
-  // Helper to render filter dropdowns dynamically
   const renderFilterDropdown = (key: string, label: string, options: FilterOption[]) => {
     const isSelected = !!selectedFilters[key];
     const selectedLabel = options.find(o => o.value === selectedFilters[key])?.label;
@@ -149,7 +145,6 @@ const AllTiles = () => {
       </div>
 
       <div className="flex flex-col gap-4 mb-8">
-        {/* Search */}
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -164,7 +159,6 @@ const AllTiles = () => {
           <Button onClick={() => fetchTiles()} className="h-11 px-8">Search</Button>
         </div>
 
-        {/* Dynamic Filter Row */}
         <div className="flex flex-wrap items-center gap-2 p-2 bg-muted/50 rounded-xl border">
           <div className="p-2 border-r mr-1">
             <Filter className="w-4 h-4 text-muted-foreground" />
@@ -187,7 +181,6 @@ const AllTiles = () => {
         </div>
       </div>
 
-      {/* Grid */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(8)].map((_, i) => (
@@ -205,4 +198,21 @@ const AllTiles = () => {
   );
 };
 
-export default AllTiles;
+// 2. The default export wrapped in Suspense
+export default function AllTiles() {
+  return (
+    <Suspense fallback={
+      <div className="w-full max-w-7xl mx-auto px-4 py-8 animate-pulse">
+        <div className="h-10 w-48 bg-muted rounded mb-8" />
+        <div className="h-12 w-full bg-muted rounded-xl mb-4" />
+        <div className="grid grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-64 bg-muted rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    }>
+      <TilesContent />
+    </Suspense>
+  );
+}
