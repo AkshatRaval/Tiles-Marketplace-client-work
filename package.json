@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "prisma generate --schema=./prisma/schema.prisma && next build",
     "start": "next start",
-    "lint": "eslint",
-    "postinstall": "prisma generate --schema=./prisma/schema.prisma"
+    "lint": "eslint"
   },
   "dependencies": {
     "@prisma/client": "6.4.1",
