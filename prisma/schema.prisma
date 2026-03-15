@@ -8,14 +8,6 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-model Admin {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String?
-  createdAt DateTime @default(now())
-}
-
 model Dealer {
   id        String   @id @default(uuid())
   name      String
@@ -72,6 +64,7 @@ model TileImage {
 /// //////////////////////////////////////////////
 model EndUser {
   id          String     @id @default(uuid())
+  role        String     @default("CUSTOMER")
   name        String
   email       String     @unique
   phone       String?

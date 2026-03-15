@@ -56,10 +56,15 @@ const Profile = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      
+
       // Load profile
       const profileRes = await api.get("/users/profile");
       setProfile(profileRes.data);
+      console.log(profileRes)
+      if (profileRes.data?.role === "ADMIN") {
+        router.replace("/admin/");
+        return; // stop loading anything else
+      }
       setEditForm({
         name: profileRes.data.name || "",
         phone: profileRes.data.phone || "",
@@ -68,7 +73,6 @@ const Profile = () => {
         state: profileRes.data.state || "",
         pincode: profileRes.data.pincode || "",
       });
-
       // Load stats
       try {
         const [bookingsRes, wishlistRes, cartRes] = await Promise.all([
@@ -76,7 +80,7 @@ const Profile = () => {
           api.get("/wishlist"),
           api.get("/cart"),
         ]);
-        
+
         setStats({
           bookings: bookingsRes.data?.length || 0,
           wishlist: wishlistRes.data?.length || 0,
@@ -129,7 +133,6 @@ const Profile = () => {
     <div className="min-h-screen bg-background">
       {/* Header Banner */}
       <div className="relative h-56 bg-gradient-to-br from-primary via-primary/90 to-primary/70">
-        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
         <div className="absolute inset-0 bg-gradient-to-t from-background/20 to-transparent" />
       </div>
 
@@ -194,7 +197,11 @@ const Profile = () => {
                         <X className="w-4 h-4 mr-2" />
                         Cancel
                       </Button>
-                      <Button onClick={handleSaveProfile} size="sm" disabled={saving}>
+                      <Button
+                        onClick={handleSaveProfile}
+                        size="sm"
+                        disabled={saving}
+                      >
                         {saving ? (
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         ) : (
@@ -233,7 +240,9 @@ const Profile = () => {
                   <ShoppingBag className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">My Bookings</p>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    My Bookings
+                  </p>
                   <p className="text-3xl font-bold">{stats.bookings}</p>
                 </div>
               </div>
@@ -261,7 +270,9 @@ const Profile = () => {
                   <Package className="w-6 h-6 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Cart Items</p>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    Cart Items
+                  </p>
                   <p className="text-3xl font-bold">{stats.cart}</p>
                 </div>
               </div>

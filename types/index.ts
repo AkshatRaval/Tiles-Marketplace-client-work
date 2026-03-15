@@ -50,6 +50,7 @@ export interface WishlistItem {
 
 export interface User {
   id: string;
+  role: "CUSTOMER" | "ADMIN";
   name: string;
   email: string;
   phone?: string;
