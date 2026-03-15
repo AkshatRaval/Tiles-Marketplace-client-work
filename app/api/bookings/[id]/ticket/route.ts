@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 
 export async function GET(
   req: Request,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await context.params;
@@ -26,16 +27,13 @@ export async function GET(
     });
 
     if (!booking) {
-      return NextResponse.json(
-        { error: "Booking not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
     // Calculate totals
     const totalAmount = booking.tiles.reduce(
       (sum: any, bt: any) => sum + bt.tile.pricePerBox * bt.quantity,
-      0
+      0,
     );
 
     const statusConfig: Record<string, { color: string; bg: string }> = {
@@ -555,11 +553,13 @@ export async function GET(
         <div class="invoice-meta">
           <div class="invoice-label">Invoice</div>
           <div class="invoice-number">#${booking.id.slice(0, 8).toUpperCase()}</div>
-          <div class="invoice-date">${new Date(booking.createdAt).toLocaleDateString("en-US", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    })}</div>
+          <div class="invoice-date">${new Date(
+            booking.createdAt,
+          ).toLocaleDateString("en-US", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })}</div>
         </div>
       </div>
 
@@ -574,25 +574,30 @@ export async function GET(
             </div>
             <div class="card-row">
               <span class="card-row-label">Date Issued</span>
-              <span class="card-row-value">${new Date(booking.createdAt).toLocaleDateString("en-US", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    })}</span>
+              <span class="card-row-value">${new Date(
+                booking.createdAt,
+              ).toLocaleDateString("en-US", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}</span>
             </div>
-            ${booking.meetingDate
-        ? `
+            ${
+              booking.meetingDate
+                ? `
             <div class="card-row">
               <span class="card-row-label">Meeting Date</span>
-              <span class="card-row-value">${new Date(booking.meetingDate).toLocaleDateString("en-US", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        })}</span>
+              <span class="card-row-value">${new Date(
+                booking.meetingDate,
+              ).toLocaleDateString("en-US", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}</span>
             </div>
             `
-        : ""
-      }
+                : ""
+            }
           </div>
         </div>
 
@@ -633,18 +638,18 @@ export async function GET(
             </thead>
             <tbody>
               ${booking.tiles
-        .map(
-          (bt: any, index: number) => `
+                .map(
+                  (bt: any, index: number) => `
                 <tr>
                   <td class="item-number">${index + 1}</td>
                   <td class="item-name">${bt.tile.name}</td>
-                  <td class="item-qty">${bt.quantity} Box${bt.quantity > 1 ? 'es' : ''}</td>
+                  <td class="item-qty">${bt.quantity} Box${bt.quantity > 1 ? "es" : ""}</td>
                   <td>₹${bt.tile.pricePerBox.toLocaleString("en-IN")}</td>
                   <td class="item-amount">₹${(bt.tile.pricePerBox * bt.quantity).toLocaleString("en-IN")}</td>
                 </tr>
-              `
-        )
-        .join("")}
+              `,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>
@@ -693,10 +698,12 @@ export async function GET(
 </html>
     `;
 
-    // Generate PDF using Puppeteer
+    // Generate PDF using puppeteer-core + @sparticuz/chromium (Vercel compatible)
     const browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: { width: 1280, height: 720 },
+      executablePath: await chromium.executablePath(),
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
 
     const page = await browser.newPage();
