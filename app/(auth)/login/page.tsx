@@ -29,7 +29,7 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       return toast.error("Please fill in all fields");
     }
@@ -61,10 +61,43 @@ export default function LoginPage() {
     );
   }
 
+  const handleGoogleLogin = () => {
+    const width = 500;
+    const height = 650;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+
+    const popup = window.open(
+      "/api/auth/google",
+      "google-auth-popup",
+      `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=no,resizable=no`,
+    );
+
+    const handleMessage = (event: MessageEvent) => {
+      // Security: only accept messages from your own origin
+      if (event.origin !== window.location.origin) return;
+
+      if (event.data?.type === "GOOGLE_AUTH_SUCCESS") {
+        window.removeEventListener("message", handleMessage);
+        popup?.close();
+        toast.success("Signed in with Google!");
+        router.push("/");
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+
+    // Cleanup if user manually closes popup without completing auth
+    const popupChecker = setInterval(() => {
+      if (popup?.closed) {
+        clearInterval(popupChecker);
+        window.removeEventListener("message", handleMessage);
+      }
+    }, 500);
+  };
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 sm:p-8">
       <div className="w-full max-w-6xl h-full md:h-[90vh] bg-background rounded-[40px] overflow-hidden flex sm:row border shadow-2xl">
-        
         {/* Left Side - Visuals */}
         <div className="relative hidden md:flex w-1/2 flex-col justify-between p-12 text-white">
           <div className="absolute inset-0 z-0">
@@ -75,7 +108,7 @@ export default function LoginPage() {
               className="object-cover"
               priority
             />
-            <div className="absolute inset-0 bg-black/30"/>
+            <div className="absolute inset-0 bg-black/30" />
           </div>
 
           <div className="relative z-10">
@@ -84,7 +117,7 @@ export default function LoginPage() {
               <div className="h-px w-12 bg-white/60"></div>
             </div>
           </div>
-          
+
           <div className="relative z-10 max-w-lg mb-10">
             <h1 className="font-serif text-6xl leading-tight mb-6">
               Get <br /> Everything <br /> You Want
@@ -101,18 +134,26 @@ export default function LoginPage() {
           <div className="w-full max-w-md mx-auto space-y-6">
             <div className="text-center flex justify-center items-center gap-2">
               <Sparkles className="text-primary" />
-              <span className="font-bold text-xl tracking-tight uppercase">Tiles Market</span>
+              <span className="font-bold text-xl tracking-tight uppercase">
+                Tiles Market
+              </span>
             </div>
 
             <div className="text-center space-y-2">
-              <h2 className="font-serif text-4xl text-card-foreground">Login</h2>
-              <p className="text-muted-foreground text-sm">Enter your credentials to access your account</p>
+              <h2 className="font-serif text-4xl text-card-foreground">
+                Login
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                Enter your credentials to access your account
+              </p>
             </div>
 
             <form className="space-y-4 mt-4" onSubmit={handleLogin}>
               {/* Email Field */}
               <div className="space-y-1">
-                <label className="text-sm font-medium" htmlFor="email">Email</label>
+                <label className="text-sm font-medium" htmlFor="email">
+                  Email
+                </label>
                 <input
                   id="email"
                   type="email"
@@ -126,8 +167,15 @@ export default function LoginPage() {
               {/* Password Field */}
               <div className="space-y-1">
                 <div className="flex justify-between items-center">
-                  <label className="text-sm font-medium" htmlFor="password">Password</label>
-                  <Link href="#" className="text-xs text-muted-foreground hover:text-primary">Forgot Password?</Link>
+                  <label className="text-sm font-medium" htmlFor="password">
+                    Password
+                  </label>
+                  <Link
+                    href="#"
+                    className="text-xs text-muted-foreground hover:text-primary"
+                  >
+                    Forgot Password?
+                  </Link>
                 </div>
                 <div className="relative">
                   <input
@@ -154,13 +202,24 @@ export default function LoginPage() {
                   disabled={isSubmitting}
                   className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-primary/20"
                 >
-                  {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : "Sign In"}
+                  {isSubmitting ? (
+                    <Loader2 className="animate-spin" size={18} />
+                  ) : (
+                    "Sign In"
+                  )}
                 </button>
 
                 <button
                   type="button"
-                  className="w-full bg-background border border-border py-3.5 rounded-xl text-sm font-medium hover:bg-muted transition-colors flex items-center justify-center gap-2">
-                  <Image src="/assets/google.ico" width={16} height={16} alt="Google" />
+                  className="w-full bg-background border border-border py-3.5 rounded-xl text-sm font-medium hover:bg-muted transition-colors flex items-center justify-center gap-2"
+                  onClick={handleGoogleLogin} // 👈 just add this
+                >
+                  <Image
+                    src="/assets/google.ico"
+                    width={16}
+                    height={16}
+                    alt="Google"
+                  />
                   Sign In with Google
                 </button>
               </div>
@@ -169,7 +228,10 @@ export default function LoginPage() {
             <div className="text-center mt-6">
               <p className="text-sm text-muted-foreground">
                 Don't have an account?{" "}
-                <Link href="/signup" className="font-bold text-foreground hover:underline">
+                <Link
+                  href="/signup"
+                  className="font-bold text-foreground hover:underline"
+                >
                   Sign Up
                 </Link>
               </p>
