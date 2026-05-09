@@ -20,7 +20,13 @@ export async function GET() {
       count: Number(row.count),
     }));
 
-    return NextResponse.json({ categories: formattedCategories });
+    const response = NextResponse.json({ categories: formattedCategories });
+    // Category counts change rarely — cache for 5 minutes
+    response.headers.set(
+      "Cache-Control",
+      "public, s-maxage=300, stale-while-revalidate=600"
+    );
+    return response;
   } catch (error) {
     console.error("CATEGORY_STATS_ERROR:", error);
     return NextResponse.json(

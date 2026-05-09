@@ -35,9 +35,13 @@ export async function GET(req: Request) {
       createdAt: review.createdAt,
     }));
 
-    return NextResponse.json({
-      testimonials,
-    });
+    const response = NextResponse.json({ testimonials });
+    // Testimonials are static — cache for 10 minutes
+    response.headers.set(
+      "Cache-Control",
+      "public, s-maxage=600, stale-while-revalidate=1200"
+    );
+    return response;
   } catch (error) {
     console.error("TESTIMONIALS_ERROR:", error);
     return NextResponse.json(

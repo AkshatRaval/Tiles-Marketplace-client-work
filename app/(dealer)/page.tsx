@@ -61,18 +61,19 @@ const MainHome = () => {
   const loadHomeData = async () => {
     try {
       setLoading(true);
-      
-      const [featuredRes, newArrivalsRes, popularRes, categoriesRes, testimonialsRes] = await Promise.all([
-        api.get("/public/tiles", { params: { limit: 8, page: 1 } }),
-        api.get("/public/tiles", { params: { limit: 8, page: 1 } }),
-        api.get("/public/tiles", { params: { limit: 4, page: 1 } }),
+
+      // Fetch tiles once, categories, and testimonials in parallel — no duplicate calls
+      const [tilesRes, categoriesRes, testimonialsRes] = await Promise.all([
+        api.get("/public/tiles", { params: { limit: 12, page: 1 } }),
         api.get("/stats/categories"),
-        api.get("/stats/testimonials", { params: { limit: 5, featured: true } }),
+        api.get("/stats/testimonials", { params: { limit: 5 } }),
       ]);
 
-      setFeaturedTiles(featuredRes.data.tiles || []);
-      setNewArrivals(newArrivalsRes.data.tiles || []);
-      setPopularTiles(popularRes.data.tiles || []);
+      const allTiles: Tile[] = tilesRes.data.tiles || [];
+      // Reuse the same tile list for all three sections (different slices)
+      setFeaturedTiles(allTiles.slice(0, 8));
+      setNewArrivals(allTiles.slice(0, 8));
+      setPopularTiles(allTiles.slice(0, 4));
       setCategoryStats(categoriesRes.data.categories || []);
       setTestimonials(testimonialsRes.data.testimonials || []);
     } catch (error) {

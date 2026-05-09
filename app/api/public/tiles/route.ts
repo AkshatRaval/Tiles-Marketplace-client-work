@@ -72,7 +72,7 @@ export async function GET(req: Request) {
       prisma.tile.count({ where }),
     ]);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       tiles,
       pagination: {
         total,
@@ -81,6 +81,14 @@ export async function GET(req: Request) {
         pages: Math.ceil(total / limit),
       },
     });
+
+    // Cache public tile listings — 60s fresh, up to 5 min stale-while-revalidate
+    response.headers.set(
+      "Cache-Control",
+      "public, s-maxage=60, stale-while-revalidate=300"
+    );
+
+    return response;
   } catch (error: any) {
     console.error("PUBLIC_TILES_ERROR:", error);
     return NextResponse.json(
