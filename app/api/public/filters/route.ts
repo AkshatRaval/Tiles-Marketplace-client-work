@@ -3,13 +3,19 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    // Run all groupBy queries in parallel
-    const [catData, sizeData, finishData, appData] = await Promise.all([
-      prisma.tile.groupBy({
-        by: ["category"],
-        where: { isPublished: true },
-        _count: { category: true },
-      }),
+    // category is a TileCategory[] array — groupBy doesn't work on array columns.
+    // Use raw SQL unnest to get per-category counts.
+    const catRows = await prisma.$queryRaw<
+      Array<{ category: string; count: bigint }>
+    >`
+      SELECT unnest(category) AS category, COUNT(*) AS count
+      FROM "Tile"
+      WHERE "isPublished" = true
+      GROUP BY unnest(category)
+      ORDER BY count DESC
+    `;
+
+    const [sizeData, finishData, appData] = await Promise.all([
       prisma.tile.groupBy({
         by: ["size"],
         where: { isPublished: true },
@@ -27,12 +33,11 @@ export async function GET() {
       }),
     ]);
 
-    // Format the data into clean arrays of strings or objects
     const filters = {
-      categories: catData.map((item: any) => ({
+      categories: catRows.map((item) => ({
         value: item.category,
         label: item.category.replace(/_/g, " "),
-        count: item._count.category,
+        count: Number(item.count),
       })),
       sizes: sizeData.map((item: any) => ({
         value: item.size,

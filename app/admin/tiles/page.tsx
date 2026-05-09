@@ -114,8 +114,12 @@ const AdminTiles = () => {
 
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [selectedPdf, setSelectedPdf] = useState<File | null>(null);
-
   const [fileNames, setFileNames] = useState({ photos: "", pdf: "" });
+
+  // Edit dialog media state
+  const [editImages, setEditImages] = useState<File[]>([]);
+  const [editPdf, setEditPdf] = useState<File | null>(null);
+  const [editFileNames, setEditFileNames] = useState({ photos: "", pdf: "" });
 
   // Size builder state
   const [sizeWidth, setSizeWidth] = useState("");
@@ -125,7 +129,7 @@ const AdminTiles = () => {
   const [formdata, setFormdata] = useState({
     name: "",
     sku: "",
-    category: "",
+    category: [] as string[],
     material: "",
     size: "",
     finish: "",
@@ -140,6 +144,28 @@ const AdminTiles = () => {
     imageUrls: [] as string[],
     pdfUrl: "",
   });
+
+  // Toggle a category in the add-tile form
+  const toggleAddCategory = (value: string) => {
+    setFormdata((prev) => ({
+      ...prev,
+      category: prev.category.includes(value)
+        ? prev.category.filter((c) => c !== value)
+        : [...prev.category, value],
+    }));
+  };
+
+  // Toggle a category in the edit dialog
+  const toggleEditCategory = (value: string) => {
+    setEditingTile((prev: any) => ({
+      ...prev,
+      category: Array.isArray(prev.category)
+        ? prev.category.includes(value)
+          ? prev.category.filter((c: string) => c !== value)
+          : [...prev.category, value]
+        : [value],
+    }));
+  };
 
   useEffect(() => {
     fetchTiles();
@@ -238,6 +264,10 @@ const AdminTiles = () => {
         alert("Please select at least one image");
         return;
       }
+      if (!formdata.category.length) {
+        alert("Please select at least one category");
+        return;
+      }
 
       const imageUrls = await Promise.all(
         selectedImages.map((file) => uploadToCloudinary(file, "image")),
@@ -251,7 +281,7 @@ const AdminTiles = () => {
       const payload = {
         name: formdata.name,
         sku: formdata.sku,
-        category: formdata.category,
+        category: formdata.category, // array
         material: formdata.material,
         size: formdata.size,
         finish: formdata.finish,
@@ -270,12 +300,12 @@ const AdminTiles = () => {
       await api.post("/admin/tiles", payload);
       fetchTiles();
       alert("Tile created");
-      
+
       // Reset form
       setFormdata({
         name: "",
         sku: "",
-        category: "",
+        category: [],
         material: "",
         size: "",
         finish: "",
@@ -320,20 +350,24 @@ const AdminTiles = () => {
   const openEdit = (tile: any) => {
     setEditingTile({
       ...tile,
+      category: Array.isArray(tile.category) ? tile.category : [tile.category],
       pricePerSqft: tile.pricePerSqft?.toString() ?? "",
       pricePerBox: tile.pricePerBox?.toString() ?? "",
       stock: tile.stock?.toString() ?? "",
     });
+    setEditImages([]);
+    setEditPdf(null);
+    setEditFileNames({ photos: "", pdf: "" });
   };
 
   const handleUpdateTile = async () => {
     if (!editingTile) return;
     setLoading(true);
     try {
-      await api.patch(`/admin/tiles/${editingTile.id}`, {
+      const payload: any = {
         name: editingTile.name,
         sku: editingTile.sku,
-        category: editingTile.category,
+        category: Array.isArray(editingTile.category) ? editingTile.category : [editingTile.category],
         material: editingTile.material,
         size: editingTile.size,
         finish: editingTile.finish,
@@ -345,9 +379,28 @@ const AdminTiles = () => {
         stock: editingTile.stock,
         description: editingTile.description,
         dealerId: editingTile.dealerId || editingTile.dealer?.id,
-      });
+      };
+
+      // Upload new images if admin selected them
+      if (editImages.length > 0) {
+        const newImageUrls = await Promise.all(
+          editImages.map((file) => uploadToCloudinary(file, "image"))
+        );
+        payload.imageUrls = newImageUrls;
+      }
+
+      // Upload new PDF if admin selected one
+      if (editPdf) {
+        const newPdfUrl = await uploadToCloudinary(editPdf, "raw");
+        payload.pdfUrl = newPdfUrl;
+      }
+
+      await api.patch(`/admin/tiles/${editingTile.id}`, payload);
       await fetchTiles();
       setEditingTile(null);
+      setEditImages([]);
+      setEditPdf(null);
+      setEditFileNames({ photos: "", pdf: "" });
       alert("Tile updated");
     } catch (e) {
       console.error(e);
@@ -505,20 +558,31 @@ const AdminTiles = () => {
                   </h3>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Category</Label>
-                      <Select onValueChange={(v) => updateField("category", v)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px]">
-                          {TILE_CATEGORIES.map((cat) => (
-                            <SelectItem key={cat.value} value={cat.value}>
-                              {cat.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="space-y-2 col-span-2">
+                      <Label>
+                        Category
+                        {formdata.category.length > 0 && (
+                          <span className="ml-2 text-primary font-normal text-xs">
+                            ({formdata.category.length} selected)
+                          </span>
+                        )}
+                      </Label>
+                      <div className="border rounded-lg p-3 max-h-48 overflow-y-auto grid grid-cols-2 gap-1">
+                        {TILE_CATEGORIES.map((cat) => (
+                          <label
+                            key={cat.value}
+                            className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer text-xs"
+                          >
+                            <input
+                              type="checkbox"
+                              className="accent-primary"
+                              checked={formdata.category.includes(cat.value)}
+                              onChange={() => toggleAddCategory(cat.value)}
+                            />
+                            {cat.label}
+                          </label>
+                        ))}
+                      </div>
                     </div>
 
                     <div className="space-y-2">
@@ -870,10 +934,15 @@ const AdminTiles = () => {
                   <UploadCloud className="w-8 h-8" />
                 </div>
               )}
-              <div className="absolute top-2 left-2">
-                <Badge className="text-[10px] uppercase">
-                  {tile.category?.toString().replace(/_/g, " ")}
-                </Badge>
+              <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[80%]">
+                {(Array.isArray(tile.category) ? tile.category : [tile.category]).slice(0, 2).map((cat: string) => (
+                  <Badge key={cat} className="text-[10px] uppercase">
+                    {cat.replace(/_/g, " ")}
+                  </Badge>
+                ))}
+                {Array.isArray(tile.category) && tile.category.length > 2 && (
+                  <Badge className="text-[10px]">+{tile.category.length - 2}</Badge>
+                )}
               </div>
               <div className="absolute top-2 right-2 flex gap-1">
                 <Button
@@ -1013,7 +1082,13 @@ const AdminTiles = () => {
                 </div>
                 <div>
                   <b>Category:</b>{" "}
-                  {selectedTile.category?.toString().replace(/_/g, " ")}
+                  <span className="flex flex-wrap gap-1 mt-1">
+                    {(Array.isArray(selectedTile.category) ? selectedTile.category : [selectedTile.category]).map((cat: string) => (
+                      <Badge key={cat} className="text-[10px] uppercase">
+                        {cat.replace(/_/g, " ")}
+                      </Badge>
+                    ))}
+                  </span>
                 </div>
                 <div>
                   <b>Size:</b> {selectedTile.size}
@@ -1067,6 +1142,50 @@ const AdminTiles = () => {
               </DialogHeader>
 
               <div className="space-y-6 mt-4">
+
+                {/* Media update section */}
+                <section className="space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                    Update Media
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <label className="group border-2 border-dashed rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer hover:border-primary transition">
+                      <UploadCloud className="mb-2 opacity-60 group-hover:text-primary" size={20} />
+                      <span className="text-xs font-semibold text-center">
+                        {editFileNames.photos || "Replace Images"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground mt-1">Leave empty to keep current</span>
+                      <input
+                        type="file"
+                        multiple
+                        hidden
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          setEditImages(files);
+                          setEditFileNames((p) => ({ ...p, photos: `${files.length} image(s) selected` }));
+                        }}
+                      />
+                    </label>
+                    <label className="group border-2 border-dashed rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer hover:border-primary transition">
+                      <FileText className="mb-2 opacity-60 group-hover:text-primary" size={20} />
+                      <span className="text-xs font-semibold text-center truncate">
+                        {editFileNames.pdf || "Replace PDF"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground mt-1">Leave empty to keep current</span>
+                      <input
+                        type="file"
+                        hidden
+                        accept=".pdf"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          setEditPdf(file);
+                          setEditFileNames((p) => ({ ...p, pdf: file?.name || "" }));
+                        }}
+                      />
+                    </label>
+                  </div>
+                </section>
+
                 <section className="space-y-4">
                   <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                     Basic Information
@@ -1123,25 +1242,31 @@ const AdminTiles = () => {
                   </h3>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Category</Label>
-                      <Select
-                        value={editingTile.category}
-                        onValueChange={(v) =>
-                          setEditingTile({ ...editingTile, category: v })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px]">
-                          {TILE_CATEGORIES.map((cat) => (
-                            <SelectItem key={cat.value} value={cat.value}>
-                              {cat.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="space-y-2 col-span-2">
+                      <Label>
+                        Category
+                        {Array.isArray(editingTile.category) && editingTile.category.length > 0 && (
+                          <span className="ml-2 text-primary font-normal text-xs">
+                            ({editingTile.category.length} selected)
+                          </span>
+                        )}
+                      </Label>
+                      <div className="border rounded-lg p-3 max-h-44 overflow-y-auto grid grid-cols-2 gap-1">
+                        {TILE_CATEGORIES.map((cat) => (
+                          <label
+                            key={cat.value}
+                            className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer text-xs"
+                          >
+                            <input
+                              type="checkbox"
+                              className="accent-primary"
+                              checked={Array.isArray(editingTile.category) && editingTile.category.includes(cat.value)}
+                              onChange={() => toggleEditCategory(cat.value)}
+                            />
+                            {cat.label}
+                          </label>
+                        ))}
+                      </div>
                     </div>
 
                     <div className="space-y-2">

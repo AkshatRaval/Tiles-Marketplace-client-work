@@ -3,29 +3,24 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const categories = await prisma.tile.groupBy({
-      by: ["category"],
-      where: {
-        isPublished: true,
-      },
-      _count: {
-        category: true,
-      },
-      orderBy: {
-        _count: {
-          category: "desc",
-        },
-      },
-    });
+    // category is a TileCategory[] array — groupBy doesn't work on array columns.
+    // Use raw SQL unnest to get per-category counts.
+    const rows = await prisma.$queryRaw<
+      Array<{ category: string; count: bigint }>
+    >`
+      SELECT unnest(category) AS category, COUNT(*) AS count
+      FROM "Tile"
+      WHERE "isPublished" = true
+      GROUP BY unnest(category)
+      ORDER BY count DESC
+    `;
 
-    const formattedCategories = categories.map((cat: any) => ({
-      category: cat.category,
-      count: cat._count.category,
+    const formattedCategories = rows.map((row) => ({
+      category: row.category,
+      count: Number(row.count),
     }));
 
-    return NextResponse.json({
-      categories: formattedCategories,
-    });
+    return NextResponse.json({ categories: formattedCategories });
   } catch (error) {
     console.error("CATEGORY_STATS_ERROR:", error);
     return NextResponse.json(

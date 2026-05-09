@@ -22,10 +22,10 @@ model Dealer {
 }
 
 model Tile {
-  id           String          @id @default(uuid())
+  id           String           @id @default(uuid())
   name         String
-  sku          String          @unique
-  category     TileCategory
+  sku          String           @unique
+  category     TileCategory[]
   material     TileMaterial
   finish       TileFinish
   color        TileColor
@@ -37,18 +37,17 @@ model Tile {
   stock        Int
   description  String?
   pdfUrl       String?
-  isPublished  Boolean         @default(true)
+  isPublished  Boolean          @default(true)
   dealerId     String
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
   bookingTiles BookingTile[]
   cartItems    CartItem[]
   reviews      Review[]
-  dealer       Dealer          @relation(fields: [dealerId], references: [id])
+  dealer       Dealer           @relation(fields: [dealerId], references: [id])
   images       TileImage[]
   wishlist     Wishlist[]
 
-  @@index([category])
   @@index([isPublished])
 }
 

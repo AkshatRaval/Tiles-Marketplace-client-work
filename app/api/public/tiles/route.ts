@@ -26,8 +26,8 @@ export async function GET(req: Request) {
       isPublished: true,
     };
 
-    // Strict Enum/String matches
-    if (category) where.category = category;
+    // category is a TileCategory[] array — use "has" for filtering
+    if (category) where.category = { has: category };
     if (material) where.material = material;
     if (finish) where.finish = finish;
     if (size) where.size = size;
