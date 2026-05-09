@@ -24,7 +24,6 @@ export function TileCard({ tile, className }: TileCardProps) {
   const [currentImg, setCurrentImg] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
-  
   const { user } = useAuth();
   const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const router = useRouter();
@@ -219,7 +218,7 @@ export function TileCard({ tile, className }: TileCardProps) {
           <h3 className="font-bold text-base mb-1 line-clamp-2 group-hover:text-primary transition-colors">
             {tile.name}
           </h3>
-          
+
           <p className="text-xs text-muted-foreground mb-3">
             {tile.finish} • {(Array.isArray(tile.category) ? tile.category : [tile.category]).map((c: string) => c.replace(/_/g, " ")).join(", ")}
           </p>
