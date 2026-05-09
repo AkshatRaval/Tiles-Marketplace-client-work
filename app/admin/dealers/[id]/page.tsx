@@ -205,7 +205,7 @@ export default function DealerDetailsPage() {
                     </div>
                     <div className="p-4">
                       <div className="text-xs text-muted-foreground uppercase mb-1">
-                        {tile.category?.replace(/_/g, " ")}
+                        {(Array.isArray(tile.category) ? tile.category : [tile.category]).map((c: string) => c.replace(/_/g, " ")).join(", ")}
                       </div>
                       <h3 className="font-semibold mb-2 line-clamp-2 min-h-[3rem]">
                         {tile.name}

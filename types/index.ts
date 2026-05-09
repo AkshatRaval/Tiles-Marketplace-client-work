@@ -4,7 +4,7 @@ export interface Tile {
   id: string;
   name: string;
   sku: string;
-  category: string;
+  category: string[];
   material: string;
   finish: string;
   size: string;
