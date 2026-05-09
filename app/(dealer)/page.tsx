@@ -91,7 +91,7 @@ const MainHome = () => {
   };
 
   const categories = categoryStats.map((stat) => ({
-    name: stat.category.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase()),
+    name: (typeof stat.category === "string" ? stat.category : stat.category[0]).replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase()),
     count: `${stat.count}+`,
     link: `/tiles?category=${stat.category}`,
   }));

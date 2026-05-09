@@ -92,7 +92,11 @@ export default function TilePage() {
 
       let rel =
         allTilesRes.data.tiles?.filter(
-          (t: any) => t.category === response.data.category && t.id !== id,
+          (t: any) =>
+            Array.isArray(t.category)
+              ? t.category.some((c: string) => response.data.category?.includes(c))
+              : t.category === response.data.category?.[0]
+            && t.id !== id,
         ) || [];
       if (rel.length < 4)
         rel = allTilesRes.data.tiles?.filter((t: any) => t.id !== id) || [];
@@ -268,7 +272,7 @@ export default function TilePage() {
                   variant="secondary"
                   className="px-3 py-1 rounded-full uppercase tracking-widest text-[10px]"
                 >
-                  {tile.category?.replace(/_/g, " ")}
+                  {(Array.isArray(tile.category) ? tile.category : [tile.category]).slice(0, 2).join(", ").replace(/_/g, " ")}
                 </Badge>
                 <span className="text-xs text-muted-foreground font-mono">
                   SKU: {tile.sku}
@@ -576,7 +580,7 @@ export default function TilePage() {
                           variant="outline"
                           className="mb-3 text-[9px] uppercase font-bold text-muted-foreground border-muted-foreground/20"
                         >
-                          {item.category?.replace(/_/g, " ")}
+                          {(Array.isArray(item.category) ? item.category : [item.category])[0]?.replace(/_/g, " ")}
                         </Badge>
                         <h3 className="font-bold text-lg mb-1 line-clamp-1 group-hover:text-primary transition-colors">
                           {item.name}

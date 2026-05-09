@@ -221,7 +221,7 @@ export function TileCard({ tile, className }: TileCardProps) {
           </h3>
           
           <p className="text-xs text-muted-foreground mb-3">
-            {tile.finish} • {tile.category.replace(/_/g, " ")}
+            {tile.finish} • {(Array.isArray(tile.category) ? tile.category : [tile.category]).map((c: string) => c.replace(/_/g, " ")).join(", ")}
           </p>
 
           {/* Price */}
